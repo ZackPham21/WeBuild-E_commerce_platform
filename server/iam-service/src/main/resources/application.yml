@@ -1,0 +1,17 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: iam-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5431/iamdb
+    username: iam
+    password: iam
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false

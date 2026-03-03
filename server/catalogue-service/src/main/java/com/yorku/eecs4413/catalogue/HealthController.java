@@ -1,4 +1,4 @@
-package com.yorku.eecs4413.iam;
+package com.yorku.eecs4413.catalogue;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
