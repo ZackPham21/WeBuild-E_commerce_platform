@@ -3,3 +3,9 @@ server:
 spring:
   application:
     name: auction-service
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
