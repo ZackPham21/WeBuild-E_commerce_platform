@@ -15,6 +15,13 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: catalogue-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/items/**
+          filters:
+            - StripPrefix=0
+
 management:
   endpoints:
     web:

@@ -31,9 +31,8 @@ public class GatewayLoggingFilter implements GlobalFilter, Ordered {
 
         return chain.filter(exchange)
                 .doOnSuccess(v -> {
-                    Integer status = exchange.getResponse().getStatusCode() != null
-                            ? exchange.getResponse().getStatusCode().value()
-                            : null;
+                    var statusCode = exchange.getResponse().getStatusCode();
+                    Integer status = statusCode != null ? statusCode.value() : 0;
                     long tookMs = System.currentTimeMillis() - start;
                     log.info("[GW:{}] <-- {} {} status={} took={}ms", requestId, method, path, status, tookMs);
                 })
