@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+
+  iam-db:
+    image: postgres:16
+    container_name: iam-db
+    environment:
+      POSTGRES_DB: iamdb
+      POSTGRES_USER: iam
+      POSTGRES_PASSWORD: iam
+    ports:
+      - "5431:5432"
+
+  catalogue-db:
+    image: postgres:16
+    container_name: catalogue-db
+    environment:
+      POSTGRES_DB: cataloguedb
+      POSTGRES_USER: catalogue
+      POSTGRES_PASSWORD: catalogue
+    ports:
+      - "5434:5432"
+
+  auction-db:
+    image: postgres:16
+    container_name: auction-db
+    environment:
+      POSTGRES_DB: auctiondb
+      POSTGRES_USER: auction
+      POSTGRES_PASSWORD: auction
+    ports:
+      - "5435:5432"
+
+  payment-db:
+    image: postgres:16
+    container_name: payment-db
+    environment:
+      POSTGRES_DB: paymentdb
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: payment
+    ports:
+      - "5436:5432"
