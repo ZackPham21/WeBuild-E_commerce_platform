@@ -1,0 +1,49 @@
+package com.yorku.eecs4413.catalogue;
+
+
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+public class AddItemRequest {
+    private String name;
+    private String description;
+    private String category;
+    private BigDecimal startingPrice;
+    private Long sellerId;
+    private LocalDateTime auctionStartTime;
+    private LocalDateTime auctionEndTime;
+    private Integer shippingDays;
+    private BigDecimal shippingCost;
+    private BigDecimal expeditedShippingCost;
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+
+    public BigDecimal getStartingPrice() { return startingPrice; }
+    public void setStartingPrice(BigDecimal startingPrice) { this.startingPrice = startingPrice; }
+
+    public Long getSellerId() { return sellerId; }
+    public void setSellerId(Long sellerId) { this.sellerId = sellerId; }
+
+    public LocalDateTime getAuctionStartTime() { return auctionStartTime; }
+    public void setAuctionStartTime(LocalDateTime auctionStartTime) { this.auctionStartTime = auctionStartTime; }
+
+    public LocalDateTime getAuctionEndTime() { return auctionEndTime; }
+    public void setAuctionEndTime(LocalDateTime auctionEndTime) { this.auctionEndTime = auctionEndTime; }
+
+    public Integer getShippingDays() { return shippingDays; }
+    public void setShippingDays(Integer shippingDays) { this.shippingDays = shippingDays; }
+
+    public BigDecimal getShippingCost() { return shippingCost; }
+    public void setShippingCost(BigDecimal shippingCost) { this.shippingCost = shippingCost; }
+
+    public BigDecimal getExpeditedShippingCost() { return expeditedShippingCost; }
+    public void setExpeditedShippingCost(BigDecimal expeditedShippingCost) { this.expeditedShippingCost = expeditedShippingCost; }
+}
