@@ -1,5 +1,22 @@
 server:
   port: 8080
+
 spring:
   application:
     name: gateway-service
+
+  cloud:
+    gateway:
+      routes:
+        - id: iam-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/iam/**
+          filters:
+            - StripPrefix=1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

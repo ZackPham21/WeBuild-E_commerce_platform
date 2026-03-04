@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://iam-db:5432/iamdb
+    username: iam
+    password: iam
