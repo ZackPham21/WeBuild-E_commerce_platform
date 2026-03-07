@@ -86,8 +86,7 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 # Happy path — tests all main use cases in order
 .\test-scripts\main_flow.ps1
 
-# Corner cases — tests all 16 SDD test cases with PASS/FAIL summary
-.\test-scripts\corner_cases.ps1
+# Execute each of the postman request by their proper sequence, as some statements depend on others to work. Auction-related tests require the tester to enter a time of their own choice.
 ```
 
 ---
