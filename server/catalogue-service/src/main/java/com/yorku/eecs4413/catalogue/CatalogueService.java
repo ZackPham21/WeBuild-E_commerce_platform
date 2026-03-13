@@ -1,16 +1,11 @@
 package com.yorku.eecs4413.catalogue;
 
-
-
-import com.yorku.eecs4413.catalogue.AddItemRequest;
-import com.yorku.eecs4413.catalogue.Item;
-import com.yorku.eecs4413.catalogue.ItemRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 @Service
 public class CatalogueService {
@@ -72,5 +67,13 @@ public class CatalogueService {
             item.setStatus(Item.ItemStatus.ENDED);
             return itemRepository.save(item);
         }).orElse(null);
+    }
+
+    public Map<String, Object> markAsSold(Long itemId) {
+        return itemRepository.findById(itemId).map(item -> {
+            item.setStatus(Item.ItemStatus.SOLD);
+            itemRepository.save(item);
+            return Map.<String, Object>of("success", true, "message", "Item marked as SOLD.");
+        }).orElse(Map.of("success", false, "message", "Item not found."));
     }
 }

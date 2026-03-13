@@ -1,18 +1,19 @@
 package com.yorku.eecs4413.gateway;
 
 
-import com.yorku.eecs4413.gateway.GatewayBidRequest;
-import com.yorku.eecs4413.gateway.GatewayPaymentRequest;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
-
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 public class GatewayService {
@@ -191,16 +192,38 @@ public class GatewayService {
         try {
             ResponseEntity<Map> resp = restTemplate.postForEntity(
                     paymentUrl + "/api/payment/process", payBody, Map.class);
+
+            // If payment was successful, close the auction and mark item as SOLD
+            if (resp.getStatusCode().is2xxSuccessful()) {
+                // Close the auction
+                try {
+                    restTemplate.postForEntity(
+                        auctionUrl + "/api/auction/close/" + req.getItemId(),
+                        null, Map.class);
+                } catch (Exception e) {
+                    System.out.println("Warning: Could not close auction for itemId=" + req.getItemId());
+                }
+
+                // Mark item as SOLD in catalogue
+                try {
+                    restTemplate.postForEntity(
+                        catalogueUrl + "/api/catalogue/items/" + req.getItemId() + "/sold",
+                        null, Map.class);
+                } catch (Exception e) {
+                    System.out.println("Warning: Could not mark item as SOLD for itemId=" + req.getItemId());
+                }
+            }
+
             return ResponseEntity.status(resp.getStatusCode()).body(resp.getBody());
         } catch (HttpClientErrorException e) {
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAs(Map.class));
         }
     }
+
     public ResponseEntity<?> getReceipt(String token, Long itemId) {
         if (!isSessionValid(token)) return unauthorized();
         return restTemplate.getForEntity(paymentUrl + "/api/payment/receipt/" + itemId, Object.class);
     }
-
     // ─── Helpers ──────────────────────────────────────────────────
 
     private boolean isSessionValid(String token) {

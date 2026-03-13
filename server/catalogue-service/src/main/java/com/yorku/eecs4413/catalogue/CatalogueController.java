@@ -1,7 +1,5 @@
 package com.yorku.eecs4413.catalogue;
 
-
-
 import com.yorku.eecs4413.catalogue.AddItemRequest;
 import com.yorku.eecs4413.catalogue.Item;
 import com.yorku.eecs4413.catalogue.CatalogueService;
@@ -66,5 +64,10 @@ public class CatalogueController {
     public ResponseEntity<?> markEnded(@PathVariable Long itemId) {
         Item item = catalogueService.markItemEnded(itemId);
         return item != null ? ResponseEntity.ok(item) : ResponseEntity.status(404).body(Map.of("error", "Item not found"));
+    }
+
+    @PostMapping("/items/{itemId}/sold")
+    public ResponseEntity<?> markAsSold(@PathVariable Long itemId) {
+        return ResponseEntity.ok(catalogueService.markAsSold(itemId));
     }
 }

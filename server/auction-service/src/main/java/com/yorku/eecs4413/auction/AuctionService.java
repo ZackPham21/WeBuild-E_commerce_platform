@@ -1,22 +1,14 @@
 package com.yorku.eecs4413.auction;
 
-
-
-import com.yorku.eecs4413.auction.CreateAuctionRequest;
-import com.yorku.eecs4413.auction.PlaceBidRequest;
-import com.yorku.eecs4413.auction.Auction;
-import com.yorku.eecs4413.auction.Bid;
-import com.yorku.eecs4413.auction.AuctionRepository;
-import com.yorku.eecs4413.auction.BidRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
 
 @Service
 public class AuctionService {
@@ -149,5 +141,13 @@ public class AuctionService {
             System.out.println("Auction closed for itemId=" + auction.getItemId()
                     + ", winner=" + auction.getHighestBidderUsername());
         }
+    }
+
+    public Map<String, Object> closeAuction(Long itemId) {
+        return auctionRepository.findByItemId(itemId).map(auction -> {
+            auction.setStatus(Auction.AuctionStatus.CLOSED);
+            auctionRepository.save(auction);
+            return Map.<String, Object>of("success", true, "message", "Auction closed.");
+        }).orElse(Map.of("success", false, "message", "Auction not found."));
     }
 }

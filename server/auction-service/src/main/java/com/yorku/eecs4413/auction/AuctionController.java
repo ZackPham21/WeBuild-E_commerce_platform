@@ -1,7 +1,5 @@
 package com.yorku.eecs4413.auction;
 
-
-
 import com.yorku.eecs4413.auction.CreateAuctionRequest;
 import com.yorku.eecs4413.auction.PlaceBidRequest;
 import com.yorku.eecs4413.auction.Bid;
@@ -45,5 +43,10 @@ public class AuctionController {
     @GetMapping("/bids/{itemId}")
     public ResponseEntity<List<Bid>> getBidHistory(@PathVariable Long itemId) {
         return ResponseEntity.ok(auctionService.getBidHistory(itemId));
+    }
+
+    @PostMapping("/close/{itemId}")
+    public ResponseEntity<?> closeAuction(@PathVariable Long itemId) {
+        return ResponseEntity.ok(auctionService.closeAuction(itemId));
     }
 }
