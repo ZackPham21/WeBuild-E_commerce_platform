@@ -1,6 +1,5 @@
 package com.yorku.eecs4413.auction;
 
-import com.yorku.eecs4413.auction.Bid;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 

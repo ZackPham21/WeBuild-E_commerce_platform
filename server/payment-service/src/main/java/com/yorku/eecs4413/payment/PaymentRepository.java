@@ -1,7 +1,6 @@
 package com.yorku.eecs4413.payment;
 
 
-import com.yorku.eecs4413.payment.Payment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 

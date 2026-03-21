@@ -1,9 +1,5 @@
 package com.yorku.eecs4413.auction;
 
-import com.yorku.eecs4413.auction.CreateAuctionRequest;
-import com.yorku.eecs4413.auction.PlaceBidRequest;
-import com.yorku.eecs4413.auction.Bid;
-import com.yorku.eecs4413.auction.AuctionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

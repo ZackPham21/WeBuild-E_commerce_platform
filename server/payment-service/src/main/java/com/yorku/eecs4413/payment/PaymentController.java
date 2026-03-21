@@ -1,8 +1,6 @@
 package com.yorku.eecs4413.payment;
 
 
-import com.yorku.eecs4413.payment.ProcessPaymentRequest;
-import com.yorku.eecs4413.payment.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

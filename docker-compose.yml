@@ -1,0 +1,193 @@
+version: '3.8'
+
+services:
+  # ==================== Databases ====================
+  iam-db:
+    image: postgres:16-alpine
+    container_name: iam-db
+    environment:
+      POSTGRES_DB: iamdb
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - iam-db-data:/var/lib/postgresql/data
+      - ./sql/iam-init.sql:/docker-entrypoint-initdb.d/01-iam-init.sql
+    networks:
+      - webuild-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  catalogue-db:
+    image: postgres:16-alpine
+    container_name: catalogue-db
+    environment:
+      POSTGRES_DB: cataloguedb
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5433:5432"
+    volumes:
+      - catalogue-db-data:/var/lib/postgresql/data
+      - ./sql/catalogue-init.sql:/docker-entrypoint-initdb.d/01-catalogue-init.sql
+    networks:
+      - webuild-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auction-db:
+    image: postgres:16-alpine
+    container_name: auction-db
+    environment:
+      POSTGRES_DB: auctiondb
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5434:5432"
+    volumes:
+      - auction-db-data:/var/lib/postgresql/data
+      - ./sql/auction-init.sql:/docker-entrypoint-initdb.d/01-auction-init.sql
+    networks:
+      - webuild-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  payment-db:
+    image: postgres:16-alpine
+    container_name: payment-db
+    environment:
+      POSTGRES_DB: paymentdb
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5435:5432"
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+      - ./sql/payment-init.sql:/docker-entrypoint-initdb.d/01-payment-init.sql
+    networks:
+      - webuild-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== Services ====================
+  iam-service:
+    build:
+      context: ./server/iam-service
+      dockerfile: Dockerfile
+    container_name: iam-service
+    ports:
+      - "8081:8081"
+    environment:
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+    depends_on:
+      iam-db:
+        condition: service_healthy
+    networks:
+      - webuild-network
+    restart: on-failure
+
+  catalogue-service:
+    build:
+      context: ./server/catalogue-service
+      dockerfile: Dockerfile
+    container_name: catalogue-service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+    depends_on:
+      catalogue-db:
+        condition: service_healthy
+    networks:
+      - webuild-network
+    restart: on-failure
+
+  auction-service:
+    build:
+      context: ./server/auction-service
+      dockerfile: Dockerfile
+    container_name: auction-service
+    ports:
+      - "8083:8083"
+    environment:
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+    depends_on:
+      auction-db:
+        condition: service_healthy
+    networks:
+      - webuild-network
+    restart: on-failure
+
+  payment-service:
+    build:
+      context: ./server/payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - "8084:8084"
+    environment:
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+    depends_on:
+      payment-db:
+        condition: service_healthy
+    networks:
+      - webuild-network
+    restart: on-failure
+
+  gateway-service:
+    build:
+      context: ./server/gateway-service
+      dockerfile: Dockerfile
+    container_name: gateway-service
+    ports:
+      - "8080:8080"
+    environment:
+      IAM_SERVICE_HOST: iam-service
+      CATALOGUE_SERVICE_HOST: catalogue-service
+      AUCTION_SERVICE_HOST: auction-service
+      PAYMENT_SERVICE_HOST: payment-service
+      IAM_SERVICE_PORT: 8081
+      CATALOGUE_SERVICE_PORT: 8082
+      AUCTION_SERVICE_PORT: 8083
+      PAYMENT_SERVICE_PORT: 8084
+    depends_on:
+      - iam-service
+      - catalogue-service
+      - auction-service
+      - payment-service
+    networks:
+      - webuild-network
+    restart: on-failure
+
+# ==================== Volumes ====================
+volumes:
+  iam-db-data:
+    driver: local
+  catalogue-db-data:
+    driver: local
+  auction-db-data:
+    driver: local
+  payment-db-data:
+    driver: local
+
+# ==================== Networks ====================
+networks:
+  webuild-network:
+    driver: bridge

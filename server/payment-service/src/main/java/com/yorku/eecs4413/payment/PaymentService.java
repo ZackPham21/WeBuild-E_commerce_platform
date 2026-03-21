@@ -2,9 +2,6 @@ package com.yorku.eecs4413.payment;
 
 
 
-import com.yorku.eecs4413.payment.ProcessPaymentRequest;
-import com.yorku.eecs4413.payment.Payment;
-import com.yorku.eecs4413.payment.PaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

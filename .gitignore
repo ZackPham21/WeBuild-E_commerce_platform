@@ -1,0 +1,33 @@
+# IDE and Editor
+.vscode/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# Build
+target/
+build/
+.gradle/
+*.jar
+*.class
+
+# Secrets
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# H2 local data (replaced by PostgreSQL)
+data/
+*.h2.db
