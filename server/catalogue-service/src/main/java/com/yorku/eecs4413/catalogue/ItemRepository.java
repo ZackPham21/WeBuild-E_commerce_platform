@@ -2,7 +2,6 @@ package com.yorku.eecs4413.catalogue;
 
 
 
-import com.yorku.eecs4413.catalogue.Item;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

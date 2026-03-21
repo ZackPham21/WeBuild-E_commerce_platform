@@ -2,8 +2,6 @@ package com.yorku.eecs4413.iam;
 
 
 
-import com.yorku.eecs4413.iam.*;
-import com.yorku.eecs4413.iam.IAMService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

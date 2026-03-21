@@ -1,9 +1,6 @@
 package com.yorku.eecs4413.gateway;
 
 
-import com.yorku.eecs4413.gateway.GatewayBidRequest;
-import com.yorku.eecs4413.gateway.GatewayPaymentRequest;
-import com.yorku.eecs4413.gateway.GatewayService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
