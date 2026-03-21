@@ -23,5 +23,3 @@ CREATE TABLE IF NOT EXISTS sessions (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Test users (winner789/WinPass!1, loser456/LosePass!1, seller1/SellerPass!1)
--- are inserted by DataSeeder.java at service startup with proper BCrypt hashing.
