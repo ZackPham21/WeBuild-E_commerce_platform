@@ -1,8 +1,5 @@
 package com.yorku.eecs4413.gateway;
 
-
-import java.math.BigDecimal;
-
 public class GatewayPaymentRequest {
     private Long itemId;
     private boolean expedited;

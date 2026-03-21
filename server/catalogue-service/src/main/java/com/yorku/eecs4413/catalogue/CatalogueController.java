@@ -1,8 +1,5 @@
 package com.yorku.eecs4413.catalogue;
 
-import com.yorku.eecs4413.catalogue.AddItemRequest;
-import com.yorku.eecs4413.catalogue.Item;
-import com.yorku.eecs4413.catalogue.CatalogueService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

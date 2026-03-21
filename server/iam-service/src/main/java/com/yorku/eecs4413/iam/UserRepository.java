@@ -1,7 +1,6 @@
 package com.yorku.eecs4413.iam;
 
 
-import com.yorku.eecs4413.iam.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 

@@ -14,7 +14,7 @@ public class ProcessPaymentRequest {
     private boolean expedited;
     private BigDecimal expeditedCost;
 
-    // Card info (transient - never persisted in full)
+    // Card info 
     private String cardNumber;
     private String cardHolderName;
     private String expirationDate;
