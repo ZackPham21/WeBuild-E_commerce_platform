@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +16,8 @@ public class AuctionService {
 
     @Autowired
     private AuctionRepository auctionRepository;
-
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
     @Autowired
     private BidRepository bidRepository;
 
@@ -77,6 +79,17 @@ public class AuctionService {
         auctionRepository.save(auction);
 
         long secondsRemaining = java.time.Duration.between(LocalDateTime.now(), auction.getEndTime()).getSeconds();
+
+        // Broadcast bid update to all browsers watching this auction
+        messagingTemplate.convertAndSend(
+                "/topic/auction/" + req.getItemId(),
+                Map.of(
+                        "itemId", req.getItemId(),
+                        "newHighestBid", newBid,
+                        "newHighestBidderUsername", req.getUsername(),
+                        "secondsRemaining", secondsRemaining
+                )
+        );
 
         return Map.of(
                 "success", true,

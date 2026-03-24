@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt — WeBuild</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+  :root {
+    --ink: #0d0d0d;
+    --paper: #faf8f4;
+    --accent: #c8502a;
+    --muted: #7a7570;
+    --border: #ddd9d2;
+    --green: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; }
+
+  nav {
+    background: var(--ink);
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+  .brand { font-family: 'Playfair Display', serif; font-size: 22px; color: white; text-decoration: none; }
+  .brand span { color: var(--accent); }
+
+  .page {
+    max-width: 620px;
+    margin: 60px auto;
+    padding: 0 24px;
+  }
+
+  /* Confetti-style success header */
+  .success-header {
+    text-align: center;
+    margin-bottom: 40px;
+    animation: fadeUp 0.6s ease both;
+  }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  .checkmark {
+    width: 72px; height: 72px;
+    background: var(--green);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    margin: 0 auto 20px;
+    box-shadow: 0 0 0 12px #f0fff4;
+  }
+  .success-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 42px;
+    margin-bottom: 8px;
+  }
+  .success-header h1 em { color: var(--accent); font-style: normal; }
+  .success-header p { color: var(--muted); font-size: 16px; }
+
+  /* Receipt card - styled like a real receipt */
+  .receipt {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    animation: fadeUp 0.6s 0.15s ease both;
+  }
+
+  .receipt-header {
+    background: var(--ink);
+    padding: 28px 32px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .receipt-header .brand-sm {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+  }
+  .receipt-header .brand-sm span { color: var(--accent); }
+  .receipt-num { text-align: right; }
+  .receipt-num .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #666; margin-bottom: 4px; }
+  .receipt-num .value { font-size: 14px; font-weight: 600; color: #aaa; }
+
+  .receipt-body { padding: 32px; }
+
+  .item-highlight {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: var(--paper);
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 28px;
+  }
+  .item-emoji { font-size: 40px; }
+  .item-info h3 { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 3px; }
+  .item-info p { color: var(--muted); font-size: 14px; }
+
+  .receipt-rows { margin-bottom: 24px; }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 13px 0;
+    border-bottom: 1px solid #f0ede8;
+    font-size: 15px;
+  }
+  .row:last-child { border: none; }
+  .row .key { color: var(--muted); }
+  .row .val { font-weight: 600; }
+  .row .val.green { color: var(--green); }
+  .row .val.mono { font-family: monospace; letter-spacing: 1px; }
+
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--paper);
+    padding: 18px 20px;
+    border-radius: 8px;
+    margin-top: 8px;
+  }
+  .total-row .label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .total-row .amount { font-family: 'Playfair Display', serif; font-size: 36px; color: var(--accent); }
+
+  .receipt-footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .secure-note { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .date-note { font-size: 12px; color: var(--muted); }
+
+  /* Dashed border between receipt sections */
+  .receipt-divider {
+    border: none;
+    border-top: 2px dashed var(--border);
+    margin: 0;
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 28px;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+  .btn-home {
+    flex: 1;
+    padding: 14px;
+    background: var(--ink);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+    transition: background 0.2s;
+  }
+  .btn-home:hover { background: #222; }
+  .btn-print {
+    flex: 1;
+    padding: 14px;
+    background: white;
+    color: var(--ink);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .btn-print:hover { border-color: var(--ink); }
+
+  .loading { text-align: center; padding: 80px; color: var(--muted); }
+  .loading h3 { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--ink); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<nav>
+    <a class="brand" href="index.html">We<span>Build</span></a>
+</nav>
+
+<div class="page">
+    <div class="success-header">
+        <div class="checkmark">✓</div>
+        <h1>You <em>won</em> it!</h1>
+        <p>Your payment was processed successfully.</p>
+    </div>
+
+    <div class="receipt" id="receipt">
+        <div class="loading">
+            <h3>Loading receipt...</h3>
+        </div>
+    </div>
+
+    <div class="actions">
+        <a class="btn-home" href="index.html">← Browse More Auctions</a>
+        <button class="btn-print" onclick="window.print()">🖨 Print Receipt</button>
+    </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+  requireAuth();
+  const params = new URLSearchParams(window.location.search);
+  const itemId = params.get("id");
+  if (!itemId) window.location.href = "index.html";
+
+  const EMOJI = { Electronics: "💻", Accessories: "⌚", Antiques: "🏺", Sports: "🚴", Furniture: "🛋️" };
+
+  async function loadReceipt() {
+    try {
+      const [receiptRes, itemRes] = await Promise.all([
+        apiFetch(`/payment/receipt/${itemId}`),
+        apiFetch(`/items/${itemId}`)
+      ]);
+      const receipt = await receiptRes.json();
+      const item = await itemRes.json();
+      const emoji = EMOJI[item.category] || "📦";
+      const processedAt = new Date(receipt.processedAt || Date.now()).toLocaleString();
+      const shipLabel = receipt.expedited ? "Expedited Shipping" : "Standard Shipping";
+
+      document.getElementById("receipt").innerHTML = `
+        <div class="receipt-header">
+          <div class="brand-sm">We<span>Build</span></div>
+          <div class="receipt-num">
+            <div class="label">Receipt No.</div>
+            <div class="value">#WB-${String(receipt.receiptId || itemId).padStart(6,"0")}</div>
+          </div>
+        </div>
+
+        <div class="receipt-body">
+          <div class="item-highlight">
+            <div class="item-emoji">${emoji}</div>
+            <div class="item-info">
+              <h3>${item.name}</h3>
+              <p>${item.category} · Auction #${itemId}</p>
+            </div>
+          </div>
+
+          <div class="receipt-rows">
+            <div class="row">
+              <span class="key">Winner</span>
+              <span class="val">${receipt.winnerUsername}</span>
+            </div>
+            <div class="row">
+              <span class="key">Winning Bid</span>
+              <span class="val">$${receipt.winningBid}</span>
+            </div>
+            <div class="row">
+              <span class="key">${shipLabel}</span>
+              <span class="val">$${receipt.shippingCost}</span>
+            </div>
+            <div class="row">
+              <span class="key">Delivery</span>
+              <span class="val">${receipt.expedited ? "2-3 business days" : item.shippingDays + " business days"}</span>
+            </div>
+            <div class="row">
+              <span class="key">Card Charged</span>
+              <span class="val mono">${receipt.maskedCardNumber}</span>
+            </div>
+            <div class="row">
+              <span class="key">Status</span>
+              <span class="val green">✓ Paid</span>
+            </div>
+          </div>
+
+          <div class="total-row">
+            <span class="label">Total Paid</span>
+            <span class="amount">$${receipt.totalAmount}</span>
+          </div>
+        </div>
+
+        <hr class="receipt-divider">
+
+        <div class="receipt-footer">
+          <div class="secure-note">🔒 Payment secured · Card not stored</div>
+          <div class="date-note">${processedAt}</div>
+        </div>
+      `;
+    } catch (e) {
+      document.getElementById("receipt").innerHTML = `
+        <div class="loading">
+          <h3>Receipt not found</h3>
+          <p>Make sure payment was completed successfully.</p>
+        </div>`;
+    }
+  }
+
+  loadReceipt();
+</script>
+</body>
+</html>
