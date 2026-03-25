@@ -82,6 +82,53 @@ body {
 }
 .nav-select option { background: var(--primary-light); color: #fff; }
 
+/* ── Nav dropdown menu ─────────────────────────────── */
+.nav-menu { position: relative; }
+.nav-menu-btn {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.15);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background var(--transition);
+  white-space: nowrap;
+}
+.nav-menu-btn:hover { background: rgba(255,255,255,.2); }
+.nav-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+  min-width: 180px;
+  z-index: 200;
+  overflow: hidden;
+}
+.nav-dropdown.open { display: block; }
+.nav-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--transition);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+.nav-dropdown-item:hover { background: var(--bg); }
+.nav-dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
 /* ── Layout ────────────────────────────────────────── */
 #main {
   max-width: 1200px;

@@ -183,6 +183,7 @@ async function renderPayment(container, itemId) {
     );
 
     if (res.ok && res.data.success) {
+      Purchases.add(itemId);
       toast('Payment successful!', 'success');
       navigate(`#/receipt/${itemId}`);
     } else {

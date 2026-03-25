@@ -30,6 +30,7 @@ const Api = {
   searchItems:        (kw)      => Api._req('GET',  `/items/search?keyword=${encodeURIComponent(kw)}`),
   getItemsByCategory: (cat)     => Api._req('GET',  `/items/category/${encodeURIComponent(cat)}`),
   getItem:            (id)      => Api._req('GET',  `/items/${id}`),
+  deleteItem:         (id)      => Api._req('DELETE', `/items/${id}`),
 
   // ── Auction ───────────────────────────────────────────────────────────────
   getAuctionState: (id)              => Api._req('GET',  `/auction/state/${id}`),

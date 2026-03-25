@@ -1,17 +1,17 @@
 // ── Home / Browse Items ────────────────────────────────────────────────────
+const _homeEndTimes = {}; // { itemId: endTimeMs }
+
 async function renderHome(container) {
   container.innerHTML = `
     <div class="page-header">
       <div class="page-title">Live Auctions</div>
       <div class="page-subtitle">Browse and bid on unique items from sellers around the world</div>
     </div>
-
     <div class="search-bar">
       <input class="form-input" type="text" id="search-input" placeholder="Search by name or description…">
       <button class="btn btn-dark" onclick="doSearch()">Search</button>
       <button class="btn btn-outline" onclick="clearSearch()">Clear</button>
     </div>
-
     <div class="categories">
       <button class="cat-btn active" data-cat="" onclick="filterCategory(this)">All</button>
       <button class="cat-btn" data-cat="Electronics" onclick="filterCategory(this)">💻 Electronics</button>
@@ -20,7 +20,6 @@ async function renderHome(container) {
       <button class="cat-btn" data-cat="Sports"      onclick="filterCategory(this)">🚴 Sports</button>
       <button class="cat-btn" data-cat="Furniture"   onclick="filterCategory(this)">🛋️ Furniture</button>
     </div>
-
     <div id="items-grid" class="items-grid">
       <div class="loading"><div class="spinner"></div><span>Loading auctions…</span></div>
     </div>`;
@@ -30,15 +29,28 @@ async function renderHome(container) {
   });
 
   await loadAllItems();
+  startHomeTimers();
+}
+
+function startHomeTimers() {
+  const interval = setInterval(() => {
+    const now = Date.now();
+    for (const [id, endMs] of Object.entries(_homeEndTimes)) {
+      const el = document.getElementById(`cd-${id}`);
+      if (!el) continue;
+      const secsLeft = Math.max(0, Math.floor((endMs - now) / 1000));
+      const cd = formatCountdown(secsLeft);
+      el.textContent = cd.text;
+      el.className = `countdown ${cd.urgency}`;
+    }
+  }, 1000);
+  registerCleanup(() => clearInterval(interval));
 }
 
 async function loadAllItems() {
   showGridLoading();
   const res = await Api.getItems();
-  if (!res.ok) {
-    showGridError('Failed to load items. Check that the server is running.');
-    return;
-  }
+  if (!res.ok) { showGridError('Failed to load items. Check that the server is running.'); return; }
   renderItemGrid(Array.isArray(res.data) ? res.data : []);
 }
 
@@ -68,9 +80,8 @@ async function filterCategory(btn) {
 }
 
 function setActiveCategory(cat) {
-  document.querySelectorAll('.cat-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.cat === (cat ?? ''));
-  });
+  document.querySelectorAll('.cat-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.cat === (cat ?? '')));
 }
 
 function showGridLoading(msg = 'Loading auctions…') {
@@ -86,27 +97,24 @@ function showGridError(msg) {
 function renderItemGrid(items) {
   const grid = document.getElementById('items-grid');
   if (!grid) return;
-
   if (!items.length) {
-    grid.innerHTML = `
-      <div class="empty-state" style="grid-column:1/-1">
-        <div class="empty-state-icon">📭</div>
-        <div class="empty-state-title">No auctions found</div>
-        <p>Try a different search or category</p>
-      </div>`;
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">📭</div><div class="empty-state-title">No auctions found</div><p>Try a different search or category</p></div>`;
     return;
   }
-
+  // Register end times for live timer
+  items.forEach(item => {
+    if (item.auctionEndTime) _homeEndTimes[item.id] = new Date(item.auctionEndTime).getTime();
+  });
   grid.innerHTML = items.map(item => buildItemCard(item)).join('');
 }
 
 function buildItemCard(item) {
-  const emoji     = categoryEmoji(item.category);
-  const badgeCls  = categoryBadgeClass(item.category);
-  const endTime   = item.auctionEndTime ? new Date(item.auctionEndTime) : null;
-  const secsLeft  = endTime ? Math.max(0, Math.floor((endTime - Date.now()) / 1000)) : 0;
-  const cd        = formatCountdown(secsLeft);
-  const isEnded   = secsLeft <= 0;
+  const emoji    = categoryEmoji(item.category);
+  const badgeCls = categoryBadgeClass(item.category);
+  const endMs    = item.auctionEndTime ? new Date(item.auctionEndTime).getTime() : 0;
+  const secsLeft = Math.max(0, Math.floor((endMs - Date.now()) / 1000));
+  const cd       = formatCountdown(secsLeft);
+  const isEnded  = secsLeft <= 0;
 
   return `
     <div class="item-card" onclick="navigate('#/item/${item.id}')">
@@ -124,7 +132,7 @@ function buildItemCard(item) {
           </div>
           ${isEnded
             ? `<span class="countdown ended">Ended</span>`
-            : `<span class="countdown ${cd.urgency}">${cd.text}</span>`
+            : `<span class="countdown ${cd.urgency}" id="cd-${item.id}">${cd.text}</span>`
           }
         </div>
       </div>
