@@ -84,6 +84,12 @@ public class GatewayController {
         return gatewayService.addItem(auth.replace("Bearer ", ""), body);
     }
 
+    @DeleteMapping("/items/{itemId}")
+    public ResponseEntity<?> deleteItem(@RequestHeader("Authorization") String auth,
+                                        @PathVariable Long itemId) {
+        return gatewayService.deleteItem(auth.replace("Bearer ", ""), itemId);
+    }
+
     // ─── Auction ──────────────────────────────────────────────────
     @GetMapping("/auction/state/{itemId}")
     public ResponseEntity<?> getAuctionState(@RequestHeader("Authorization") String auth,

@@ -94,6 +94,30 @@ public class GatewayService {
         return restTemplate.postForEntity(catalogueUrl + "/api/catalogue/items", body, Map.class);
     }
 
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> deleteItem(String token, Long itemId) {
+        Map<String, Object> session = validateSession(token);
+        if (!(boolean) session.getOrDefault("valid", false)) return unauthorized();
+        try {
+            ResponseEntity<Map> itemResp = restTemplate.getForEntity(
+                    catalogueUrl + "/api/catalogue/items/" + itemId, Map.class);
+            Map<String, Object> item = (Map<String, Object>) itemResp.getBody();
+            if (item == null) {
+                return ResponseEntity.status(404).body(Map.of("error", "Item not found."));
+            }
+            Long sellerId = Long.valueOf(item.get("sellerId").toString());
+            Long userId = Long.valueOf(session.get("userId").toString());
+            if (!sellerId.equals(userId)) {
+                return ResponseEntity.status(403).body(Map.of("error", "You can only delete your own items."));
+            }
+            restTemplate.exchange(catalogueUrl + "/api/catalogue/items/" + itemId,
+                    HttpMethod.DELETE, new HttpEntity<>(new HttpHeaders()), Map.class);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAs(Map.class));
+        }
+    }
+
     // ─── Auction Facade ───────────────────────────────────────────
 
     public ResponseEntity<?> getAuctionState(String token, Long itemId) {
