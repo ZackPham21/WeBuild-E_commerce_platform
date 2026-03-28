@@ -3,9 +3,13 @@
   <component name="MavenProjectsManager">
     <option name="originalFiles">
       <list>
+        <option value="$PROJECT_DIR$/server/iam-service/pom.xml" />
         <option value="$PROJECT_DIR$/server/auction-service/pom.xml" />
+        <option value="$PROJECT_DIR$/server/gateway-service/pom.xml" />
+        <option value="$PROJECT_DIR$/server/payment-service/pom.xml" />
+        <option value="$PROJECT_DIR$/server/catalogue-service/pom.xml" />
       </list>
     </option>
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_17" default="true" project-jdk-name="17" project-jdk-type="JavaSDK" />
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_19" default="true" project-jdk-name="openjdk-19" project-jdk-type="JavaSDK" />
 </project>

@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/WeBuild-E_commerce_platform.iml" filepath="$PROJECT_DIR$/.idea/WeBuild-E_commerce_platform.iml" />
       <module fileurl="file://$PROJECT_DIR$/server/auction-service/auction-service.iml" filepath="$PROJECT_DIR$/server/auction-service/auction-service.iml" />
       <module fileurl="file://$PROJECT_DIR$/server/catalogue-service/catalogue-service.iml" filepath="$PROJECT_DIR$/server/catalogue-service/catalogue-service.iml" />
       <module fileurl="file://$PROJECT_DIR$/server/gateway-service/gateway-service.iml" filepath="$PROJECT_DIR$/server/gateway-service/gateway-service.iml" />
