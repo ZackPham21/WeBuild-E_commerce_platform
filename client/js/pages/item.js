@@ -21,8 +21,8 @@ async function renderItem(container, itemId) {
   const auction = auctionRes.ok ? auctionRes.data : null;
   const user    = Auth.getUser();
 
-  const secsLeft = auction?.secondsRemaining ?? 0;
-  const isOpen   = auction?.status === 'OPEN' && secsLeft > 0;
+ const secsLeft = auction?.secondsRemaining ?? 0;
+ const isOpen   = auction?.status === 'OPEN' && secsLeft > 0 && auction?.status !== 'CLOSED';
   const emoji    = categoryEmoji(item.category);
   const badgeCls = categoryBadgeClass(item.category);
 

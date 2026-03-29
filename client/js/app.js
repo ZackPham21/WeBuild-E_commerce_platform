@@ -268,7 +268,73 @@ async function route() {
   else if (hash === '#/ended')             renderEndedAuctions(main);
   else                                     navigate('#/');
 }
+// ── Shared Chatbot (used on all pages) ────────────────────────────────────
+function buildChatBotButton() {
+  if (document.getElementById('chatbot')) return;
+  const button = document.createElement('button');
+  button.id = 'chatbot';
+  button.textContent = 'Chat Assistant';
+  button.addEventListener('click', buildChatBotWindow);
+  document.body.appendChild(button);
+}
 
+function buildChatBotWindow() {
+  if (document.getElementById('chatbot-window')) return;
+  const win = document.createElement('div');
+  win.id = 'chatbot-window';
+  win.innerHTML = `
+    <div id="chatbot-header">
+      <span>AI Chat Assistant</span>
+      <button id="chatbot-close" onclick="closeChatBotWindow()">✕</button>
+    </div>
+    <div id="chatbot-messages">
+      <div class="chatbot-msg chatbot-msg--ai">
+        Hello, I am your AI assistant. Type your question below.
+      </div>
+    </div>
+    <div id="chatbot-input-row">
+      <input id="chatbot-input" type="text" placeholder="Type your question…">
+      <button id="chatbot-submit">Send</button>
+    </div>`;
+  document.body.appendChild(win);
+  document.getElementById('chatbot-submit').addEventListener('click', submitChatBotPrompt);
+  document.getElementById('chatbot-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitChatBotPrompt();
+  });
+}
+
+async function submitChatBotPrompt() {
+  const input    = document.getElementById('chatbot-input');
+  const messages = document.getElementById('chatbot-messages');
+  const userText = input?.value?.trim();
+  if (!userText) return;
+
+  messages.innerHTML += `<div class="chatbot-msg chatbot-msg--user">${userText}</div>`;
+  const loadingId = `chatbot-loading-${Date.now()}`;
+  messages.innerHTML += `<div class="chatbot-msg chatbot-msg--ai" id="${loadingId}"><div class="spinner"></div> Thinking…</div>`;
+  input.value = '';
+  input.disabled = true;
+  messages.scrollTop = messages.scrollHeight;
+
+  try {
+    const res = await Api.prompt(userText);
+    document.getElementById(loadingId)?.remove();
+    if (!res.ok) throw new Error('Bad response');
+    const aiText = res.data?.response ?? res.data?.message ?? JSON.stringify(res.data);
+    messages.innerHTML += `<div class="chatbot-msg chatbot-msg--ai">${aiText}</div>`;
+  } catch {
+    document.getElementById(loadingId)?.remove();
+    messages.innerHTML += `<div class="chatbot-msg chatbot-msg--error">Sorry, could not answer that. Please try again.</div>`;
+  } finally {
+    input.disabled = false;
+    input.focus();
+    messages.scrollTop = messages.scrollHeight;
+  }
+}
+
+function closeChatBotWindow() {
+  document.getElementById('chatbot-window')?.remove();
+}
 window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', () => {
   const tc = document.createElement('div');

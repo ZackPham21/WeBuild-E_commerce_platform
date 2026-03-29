@@ -21,11 +21,14 @@ CREATE TABLE IF NOT EXISTS bids (
     FOREIGN KEY (auction_id) REFERENCES auctions(id)
 );
 
-INSERT INTO auctions (id, item_id, current_highest_bid, highest_bidder_id, highest_bidder_username, end_time, status)
-VALUES
-    (1, 1, 50.00,  NULL, NULL, CURRENT_TIMESTAMP + INTERVAL '48 hours', 'OPEN'),
-    (2, 2, 800.00, NULL, NULL, CURRENT_TIMESTAMP + INTERVAL '72 hours', 'OPEN'),
-    (3, 3, 100.00, NULL, NULL, CURRENT_TIMESTAMP + INTERVAL '24 hours', 'OPEN'),
-    (4, 4, 200.00, NULL, NULL, CURRENT_TIMESTAMP + INTERVAL '36 hours', 'OPEN'),
-    (5, 5, 300.00, NULL, NULL, CURRENT_TIMESTAMP + INTERVAL '96 hours', 'OPEN')
-ON CONFLICT (item_id) DO NOTHING;
+INSERT INTO auctions (item_id, current_highest_bid, highest_bidder_id,
+                      highest_bidder_username, end_time, status)
+SELECT * FROM (VALUES
+    (1, 50.00,  NULL::INTEGER, NULL::VARCHAR, CURRENT_TIMESTAMP + INTERVAL '30 days', 'OPEN'),
+    (2, 800.00, NULL::INTEGER, NULL::VARCHAR, CURRENT_TIMESTAMP + INTERVAL '30 days', 'OPEN'),
+    (3, 100.00, NULL::INTEGER, NULL::VARCHAR, CURRENT_TIMESTAMP + INTERVAL '30 days', 'OPEN'),
+    (4, 200.00, NULL::INTEGER, NULL::VARCHAR, CURRENT_TIMESTAMP + INTERVAL '30 days', 'OPEN'),
+    (5, 300.00, NULL::INTEGER, NULL::VARCHAR, CURRENT_TIMESTAMP + INTERVAL '30 days', 'OPEN')
+) AS v(item_id, current_highest_bid, highest_bidder_id,
+       highest_bidder_username, end_time, status)
+WHERE NOT EXISTS (SELECT 1 FROM auctions LIMIT 1);

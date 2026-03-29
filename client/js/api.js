@@ -29,6 +29,7 @@ const Api = {
   getItemsByCategory: (cat)     => Api._req('GET',  `/items/category/${encodeURIComponent(cat)}`),
   getItem:            (id)      => Api._req('GET',  `/items/${id}`),
   deleteItem:         (id)      => Api._req('DELETE', `/items/${id}`),
+  createItem: (body) => Api._req('POST', '/items', body),
 
   getAuctionState:   (id)             => Api._req('GET',  `/auction/state/${id}`),
   placeBid:          (itemId, amount) => Api._req('POST', '/auction/bid', { itemId, amount }),

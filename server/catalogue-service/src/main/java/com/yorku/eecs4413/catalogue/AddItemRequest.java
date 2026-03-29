@@ -1,7 +1,6 @@
 package com.yorku.eecs4413.catalogue;
 
-
-
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -11,12 +10,18 @@ public class AddItemRequest {
     private String category;
     private BigDecimal startingPrice;
     private Long sellerId;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime auctionStartTime;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime auctionEndTime;
+
     private Integer shippingDays;
     private BigDecimal shippingCost;
     private BigDecimal expeditedShippingCost;
 
+    // all getters and setters unchanged
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 

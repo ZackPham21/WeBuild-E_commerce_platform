@@ -28,7 +28,7 @@ public class CatalogueService {
         item.setShippingDays(req.getShippingDays());
         item.setShippingCost(req.getShippingCost());
         item.setExpeditedShippingCost(req.getExpeditedShippingCost());
-        item.setStatus(Item.ItemStatus.ACTIVE);
+        item.setStatus(Item.ItemStatus.ACTIVE); // ← this line is critical
         return itemRepository.save(item);
     }
 

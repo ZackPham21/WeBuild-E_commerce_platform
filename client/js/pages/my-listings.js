@@ -34,14 +34,20 @@ async function renderMyListings(container) {
   });
 
   // Split by status
-  const liveItems  = all.filter(item => {
-    const a = auctionMap[item.id];
-    return a && a.status === 'OPEN' && (a.secondsRemaining ?? 0) > 0;
-  });
-  const endedItems = all.filter(item => {
-    const a = auctionMap[item.id];
-    return !a || a.status !== 'OPEN' || (a.secondsRemaining ?? 0) <= 0;
-  });
+ const now = Date.now();
+
+ const liveItems = all.filter(item => {
+   const a = auctionMap[item.id];
+   // Primary check: trust auctionState if available
+   if (a && a.status === 'OPEN' && (a.secondsRemaining ?? 0) > 0) return true;
+   // Fallback: compare endTime directly from item data
+   if (!a && item.auctionEndTime) {
+     return new Date(item.auctionEndTime).getTime() > now;
+   }
+   return false;
+ });
+
+ const endedItems = all.filter(item => !liveItems.includes(item));
 
   // Store for tab switching
   window._myListingsLive  = liveItems;
