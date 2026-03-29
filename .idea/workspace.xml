@@ -4,19 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3e236a00-972c-4f11-9470-d5e7ba208d28" name="Changes" comment=".">
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/js/api.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/api.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/app.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/js/pages/item.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/pages/item.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/js/pages/my-listings.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/pages/my-listings.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/js/pages/sell.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/pages/sell.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/AddItemRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/AddItemRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/CatalogueService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/CatalogueService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sql/auction-init.sql" beforeDir="false" afterPath="$PROJECT_DIR$/sql/auction-init.sql" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sql/catalogue-init.sql" beforeDir="false" afterPath="$PROJECT_DIR$/sql/catalogue-init.sql" afterDir="false" />
-    </list>
+    <list default="true" id="3e236a00-972c-4f11-9470-d5e7ba208d28" name="Changes" comment="List items bug fixed" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -198,7 +186,14 @@
       <option name="project" value="LOCAL" />
       <updated>1774735022656</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="List items bug fixed">
+      <created>1774804755656</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1774804755656</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -218,6 +213,7 @@
     <MESSAGE value="WebSocket implemetation &amp; initial html files for UI" />
     <MESSAGE value="Websocket" />
     <MESSAGE value="." />
-    <option name="LAST_COMMIT_MESSAGE" value="." />
+    <MESSAGE value="List items bug fixed" />
+    <option name="LAST_COMMIT_MESSAGE" value="List items bug fixed" />
   </component>
 </project>
