@@ -21,8 +21,13 @@ async function renderItem(container, itemId) {
   const auction = auctionRes.ok ? auctionRes.data : null;
   const user    = Auth.getUser();
 
- const secsLeft = auction?.secondsRemaining ?? 0;
- const isOpen   = auction?.status === 'OPEN' && secsLeft > 0 && auction?.status !== 'CLOSED';
+  // Calculate time locally from end time string to avoid server timezone issues
+  const endTimeMs = item.auctionEndTime
+    ? new Date(item.auctionEndTime + (item.auctionEndTime.endsWith('Z') ? '' : 'Z')).getTime()
+    : 0;
+  const secsLeft = Math.max(0, Math.floor((endTimeMs - Date.now()) / 1000));
+  const isOpen   = auction?.status === 'OPEN' && secsLeft > 0;
+
   const emoji    = categoryEmoji(item.category);
   const badgeCls = categoryBadgeClass(item.category);
 
@@ -71,13 +76,18 @@ async function renderItem(container, itemId) {
         <div class="card auction-panel" id="auction-panel">
           ${buildAuctionPanel(item, auction, isOpen, user, secsLeft)}
         </div>
+        <div class="ws-status" id="ws-status" style="margin-top:8px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;padding:0 4px">
+          <div id="ws-dot" style="width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0"></div>
+          <span id="ws-label">Connecting to live updates…</span>
+        </div>
       </div>
     </div>`;
 
   // Load bid history
   loadBidHistory(itemId);
-  await buildChatBotButton();
-  // Wire up bid form if auction is open
+  buildChatBotButton();
+
+  // Wire up bid form and live updates if auction is open
   if (isOpen) {
     wireBidForm(itemId, auction);
     startLiveUpdates(itemId, item, secsLeft);
@@ -90,11 +100,11 @@ function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
     return `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-title">Auction data unavailable</div></div>`;
   }
 
-  const noBids      = !auction.highestBidderId || String(auction.highestBidderId) === 'none';
-  const currentBid  = auction.currentHighestBid;
-  const bidderName  = auction.highestBidderUsername;
+  const noBids     = !auction.highestBidderId || String(auction.highestBidderId) === 'none';
+  const currentBid = auction.currentHighestBid;
+  const bidderName = auction.highestBidderUsername;
 
-  // ── ENDED ────────────────────────────────────────────────────────────────
+  // ── ENDED ──────────────────────────────────────────────────────────────
   if (!isOpen) {
     if (noBids) {
       return `
@@ -126,9 +136,9 @@ function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
       }`;
   }
 
-  // ── OPEN ─────────────────────────────────────────────────────────────────
-  const cd        = formatCountdown(secsLeft);
-  const minNext   = noBids ? Math.ceil(Number(currentBid)) : Math.ceil(Number(currentBid)) + 1;
+  // ── OPEN ───────────────────────────────────────────────────────────────
+  const cd      = formatCountdown(secsLeft);
+  const minNext = noBids ? Math.ceil(Number(currentBid)) : Math.ceil(Number(currentBid)) + 1;
   const isWinning = user && !noBids && String(user.userId) === String(auction.highestBidderId);
 
   return `
@@ -201,20 +211,20 @@ function wireBidForm(itemId, auction) {
       alertEl.innerHTML = `<div class="alert alert-success">Bid placed successfully!</div>`;
       document.getElementById('bid-amount').value = '';
 
-      // Update live display
+      // Update live display immediately for the bidder themselves
       const bidVal = document.getElementById('current-bid-value');
       const bidBy  = document.getElementById('current-bid-by');
       if (bidVal) bidVal.textContent = formatMoney(res.data.newHighestBid);
       if (bidBy)  bidBy.textContent  = `by ${res.data.newHighestBidderUsername}`;
 
-      // Bump min
-      const minNext = Math.ceil(Number(res.data.newHighestBid)) + 1;
+      // Bump min bid input
+      const minNext  = Math.ceil(Number(res.data.newHighestBid)) + 1;
       const bidInput = document.getElementById('bid-amount');
       if (bidInput) { bidInput.placeholder = String(minNext); bidInput.min = String(minNext); }
 
       await loadBidHistory(itemId);
     } else {
-      const msg = res.data.message || 'Bid failed.';
+      const msg   = res.data.message || 'Bid failed.';
       const extra = res.data.currentHighestBid ? ` (current: ${formatMoney(res.data.currentHighestBid)})` : '';
       alertEl.innerHTML = `<div class="alert alert-error">${msg}${extra}</div>`;
     }
@@ -263,153 +273,118 @@ async function loadBidHistory(itemId) {
     </table>`;
 }
 
-// ── Live updates (countdown + polling) ────────────────────────────────────
+// ── Live updates: WebSocket + polling fallback ─────────────────────────────
 function startLiveUpdates(itemId, item, initialSecs) {
-  let secsLeft = initialSecs;
+  let secsLeft    = initialSecs;
+  let stompClient = null;
 
-  // Countdown ticks every second (local)
+  // ── WebSocket for instant bid updates ────────────────────────────────────
+  function setWsStatus(connected) {
+    const dot   = document.getElementById('ws-dot');
+    const label = document.getElementById('ws-label');
+    if (dot)   dot.style.background   = connected ? '#22c55e' : '#ccc';
+    if (label) label.textContent      = connected ? 'Live updates connected' : 'Live updates unavailable — polling every 8s';
+  }
+
+  try {
+    const socket = new SockJS('http://localhost:8083/ws');
+    stompClient  = Stomp.over(socket);
+    stompClient.debug = null; // silence STOMP frame logs
+
+    stompClient.connect({}, () => {
+      console.log('✅ WebSocket connected for item', itemId);
+      setWsStatus(true);
+
+      stompClient.subscribe(`/topic/auction/${itemId}`, (msg) => {
+        const update = JSON.parse(msg.body);
+        console.log('📨 Live bid update received:', update);
+
+        // Update bid amount and bidder name instantly
+        const bidVal = document.getElementById('current-bid-value');
+        const bidBy  = document.getElementById('current-bid-by');
+        if (bidVal) {
+          bidVal.textContent   = formatMoney(update.newHighestBid);
+          bidVal.style.color   = 'var(--success, #22c55e)';
+          setTimeout(() => { bidVal.style.color = ''; }, 1000);
+        }
+        if (bidBy) bidBy.textContent = `by ${update.newHighestBidderUsername}`;
+
+        // Update minimum bid input
+        const bidInput = document.getElementById('bid-amount');
+        if (bidInput) {
+          const minNext          = Math.ceil(Number(update.newHighestBid)) + 1;
+          bidInput.placeholder   = String(minNext);
+          bidInput.min           = String(minNext);
+        }
+
+        // Update bid hint text
+        const hint = document.querySelector('.bid-hint');
+        if (hint) hint.textContent = `Whole numbers only · must beat ${formatMoney(update.newHighestBid)}`;
+
+        // Refresh bid history table
+        loadBidHistory(itemId);
+
+        // Sync seconds remaining if provided
+        if (update.secondsRemaining !== undefined) {
+          secsLeft = update.secondsRemaining;
+        }
+      });
+
+    }, (err) => {
+      console.log('❌ WebSocket failed, falling back to polling:', err);
+      setWsStatus(false);
+    });
+
+  } catch (e) {
+    console.log('WebSocket not available, using polling only:', e);
+    setWsStatus(false);
+  }
+
+  // ── Countdown ticks every second (local clock) ───────────────────────────
   const countdownInterval = setInterval(() => {
     if (secsLeft > 0) secsLeft--;
     const cdEl = document.getElementById('countdown-big');
     if (cdEl) cdEl.innerHTML = buildCountdownUnits(formatCountdown(secsLeft));
   }, 1000);
 
-  // Poll server every 8 seconds for live bid updates
+  // ── Poll server every 8 seconds as fallback ──────────────────────────────
   const pollInterval = setInterval(async () => {
     const res = await Api.getAuctionState(itemId);
     if (!res.ok) return;
 
     const auction = res.data;
-    secsLeft = auction.secondsRemaining ?? 0;
+    secsLeft      = auction.secondsRemaining ?? 0;
 
-    // Update bid display
+    // Update bid display from poll
     const bidVal = document.getElementById('current-bid-value');
     const bidBy  = document.getElementById('current-bid-by');
     if (bidVal) bidVal.textContent = formatMoney(auction.currentHighestBid);
     if (bidBy) {
-      const noBids = !auction.highestBidderUsername || String(auction.highestBidderUsername) === 'none';
+      const noBids   = !auction.highestBidderUsername || String(auction.highestBidderUsername) === 'none';
       bidBy.textContent = noBids ? 'No bids yet — be the first!' : `by ${auction.highestBidderUsername}`;
     }
 
-    // Refresh min bid
+    // Update min bid input from poll
     const bidInput = document.getElementById('bid-amount');
     if (bidInput) {
-      const minNext = Math.ceil(Number(auction.currentHighestBid)) + 1;
+      const minNext        = Math.ceil(Number(auction.currentHighestBid)) + 1;
       bidInput.placeholder = String(minNext);
-      bidInput.min = String(minNext);
+      bidInput.min         = String(minNext);
     }
 
-    // Auction ended → reload full page section
+    // Auction ended — stop everything and reload the panel
     if (auction.status !== 'OPEN' || secsLeft <= 0) {
       clearInterval(countdownInterval);
       clearInterval(pollInterval);
+      if (stompClient) try { stompClient.disconnect(); } catch {}
       renderItem(document.getElementById('main'), itemId);
     }
   }, 8000);
 
+  // ── Cleanup when navigating away ─────────────────────────────────────────
   registerCleanup(() => {
     clearInterval(countdownInterval);
     clearInterval(pollInterval);
+    if (stompClient) try { stompClient.disconnect(); } catch {}
   });
-}
-
-async function buildChatBotButton() {
-  const existing = document.getElementById('chatbot');
-  if (existing) return; // Prevent duplicates on re-render
-
-  const button = document.createElement('button');
-  button.id          = 'chatbot';
-  button.textContent = 'Chat Assistant';
-
-  button.addEventListener('click', () => buildChatBotWindow());
-
-  document.body.appendChild(button);
-}
-
-
-async function buildChatBotWindow() {
-  // Prevent duplicate windows
-  if (document.getElementById('chatbot-window')) return;
-  const window = document.createElement('div');
-  window.id = 'chatbot-window';
-  window.innerHTML = `
-    <div id="chatbot-header">
-      <span> AI Chat Assistant</span>
-      <button id="chatbot-close" onclick="closeChatBotWindow()">✕</button>
-    </div>
-
-    <div id="chatbot-messages">
-      <div class="chatbot-msg chatbot-msg--ai">
-        Hello, I am your AI assistant, please type in your question.
-      </div>
-    </div>
-
-    <div id="chatbot-input-row">
-      <input
-        id="chatbot-input"
-        type="text"
-        placeholder="Type your question…"
-      />
-      <button id="chatbot-submit">Send</button>
-    </div>`;
-
-  document.body.appendChild(window);
-  document.getElementById('chatbot-submit').addEventListener('click', () => submitChatBotPrompt());
-  document.getElementById('chatbot-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') submitChatBotPrompt();
-  });
-}
-
-async function submitChatBotPrompt() {
-  const input    = document.getElementById('chatbot-input');
-  const messages = document.getElementById('chatbot-messages');
-  const userText = input?.value?.trim();
-
-  if (!userText) return;
-
-  messages.innerHTML += `
-    <div class="chatbot-msg chatbot-msg--user">
-      ${userText}
-    </div>`;
-
-  const loadingId = `chatbot-loading-${Date.now()}`;
-  messages.innerHTML += `
-    <div class="chatbot-msg chatbot-msg--ai" id="${loadingId}">
-      <div class="spinner"></div> Thinking…
-    </div>`;
-
-  input.value    = '';
-  input.disabled = true;
-  messages.scrollTop = messages.scrollHeight;
-  try {
-    const res = await Api.prompt(userText);
-    // Remove loading indicator
-    document.getElementById(loadingId)?.remove();
-    if (!res.ok) throw new Error('Bad response');
-
-    // Display AI response
-    const aiText = res.data?.response ?? res.data?.message ?? JSON.stringify(res.data);
-    messages.innerHTML += `
-      <div class="chatbot-msg chatbot-msg--ai">
-        ${aiText}
-      </div>`;
-
-  } catch {
-	alert(JSON.stringify(res.data))
-    document.getElementById(loadingId)?.remove();
-    messages.innerHTML += `
-      <div class="chatbot-msg chatbot-msg--error">
-        Sorry, we could not answer this question. Please try again.
-      </div>`;
-	
-  } finally {
-    input.disabled = false;
-    input.focus();
-    messages.scrollTop = messages.scrollHeight;
-  }
-}
-
-
-function closeChatBotWindow() {
-  document.getElementById('chatbot-window')?.remove();
 }

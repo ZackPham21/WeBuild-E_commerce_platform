@@ -11,27 +11,31 @@
 </head>
 <body>
 
-  <div id="header"></div>
-  <div id="main" style="max-width:1200px;margin:0 auto;padding:32px 24px;min-height:calc(100vh - 64px)"></div>
+<div id="header"></div>
+<div id="main" style="max-width:1200px;margin:0 auto;padding:32px 24px;min-height:calc(100vh - 64px)"></div>
 
-  <!-- Core -->
-  <script src="js/auth.js"></script>
-  <script src="js/api.js"></script>
+<!-- WebSocket -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
 
-  <!-- Pages -->
-  <script src="js/pages/login.js"></script>
-  <script src="js/pages/signup.js"></script>
-  <script src="js/pages/home.js"></script>
-  <script src="js/pages/item.js"></script>
-  <script src="js/pages/sell.js"></script>
-  <script src="js/pages/my-listings.js"></script>
-  <script src="js/pages/purchases.js"></script>
-  <script src="js/pages/ended.js"></script>
-  <script src="js/pages/payment.js"></script>
-  <script src="js/pages/receipt.js"></script>
+<!-- Core -->
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
 
-  <!-- App (router + shared helpers — load last) -->
-  <script src="js/app.js"></script>
+<!-- Pages -->
+<script src="js/pages/login.js"></script>
+<script src="js/pages/signup.js"></script>
+<script src="js/pages/home.js"></script>
+<script src="js/pages/item.js"></script>
+<script src="js/pages/sell.js"></script>
+<script src="js/pages/my-listings.js"></script>
+<script src="js/pages/purchases.js"></script>
+<script src="js/pages/ended.js"></script>
+<script src="js/pages/payment.js"></script>
+<script src="js/pages/receipt.js"></script>
+
+<!-- App (router + shared helpers — load last) -->
+<script src="js/app.js"></script>
 
 </body>
 </html>
