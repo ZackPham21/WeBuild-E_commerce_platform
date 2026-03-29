@@ -115,6 +115,16 @@ public class GatewayController {
         return gatewayService.getBidHistory(auth.replace("Bearer ", ""), itemId);
     }
 
+    @GetMapping("/auction/ended")
+    public ResponseEntity<?> getEndedAuctions(@RequestHeader("Authorization") String auth) {
+        return gatewayService.getEndedAuctions(auth.replace("Bearer ", ""));
+    }
+
+    @GetMapping("/auction/my-bids")
+    public ResponseEntity<?> getUserBidHistory(@RequestHeader("Authorization") String auth) {
+        return gatewayService.getUserBidHistory(auth.replace("Bearer ", ""));
+    }
+
     // ─── Payment ──────────────────────────────────────────────────
     @PostMapping("/payment")
     public ResponseEntity<?> processPayment(@RequestHeader("Authorization") String auth,

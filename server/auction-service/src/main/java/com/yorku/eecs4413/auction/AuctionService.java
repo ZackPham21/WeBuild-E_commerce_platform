@@ -2,14 +2,19 @@ package com.yorku.eecs4413.auction;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuctionService {
@@ -21,17 +26,22 @@ public class AuctionService {
     @Autowired
     private BidRepository bidRepository;
 
+    @Value("${iam.session.expiry.hours:24}")
+    private int sessionExpiryHours;
+
     public Auction createAuction(CreateAuctionRequest req) {
         Auction auction = new Auction();
         auction.setItemId(req.getItemId());
         auction.setCurrentHighestBid(req.getStartingPrice());
-        auction.setEndTime(req.getEndTime());
+        auction.setEndTime(req.getParsedEndTime());
         auction.setStatus(Auction.AuctionStatus.OPEN);
         return auctionRepository.save(auction);
     }
 
+    @Transactional
     public Map<String, Object> placeBid(PlaceBidRequest req) {
-        Optional<Auction> optAuction = auctionRepository.findByItemId(req.getItemId());
+        // Pessimistic write lock prevents two concurrent bids from both passing
+        Optional<Auction> optAuction = auctionRepository.findByItemIdForUpdate(req.getItemId());
 
         if (optAuction.isEmpty()) {
             return Map.of("success", false, "reason", "AUCTION_NOT_FOUND",
@@ -49,21 +59,40 @@ public class AuctionService {
                     "message", "This auction has ended.");
         }
 
-        // Validate bid is strictly greater (integer)
+        // Prevent the current highest bidder from raising their own bid
+        // Use toString comparison to avoid Long vs Integer type mismatch
+        if (auction.getHighestBidderId() != null && req.getUserId() != null &&
+                auction.getHighestBidderId().toString().equals(req.getUserId().toString())) {
+            return Map.of("success", false, "reason", "FAIL_ALREADY_WINNING",
+                    "currentHighestBid", auction.getCurrentHighestBid(),
+                    "message", "You are already the highest bidder. Wait for someone else to outbid you.");
+        }
+
+        // Validate bid amount
         BigDecimal newBid = req.getAmount();
+        if (newBid == null) {
+            return Map.of("success", false, "reason", "FAIL_INVALID_BID",
+                    "message", "Bid amount is required.");
+        }
         if (newBid.stripTrailingZeros().scale() > 0) {
             return Map.of("success", false, "reason", "FAIL_NOT_INTEGER",
                     "message", "Bid amount must be a whole integer.");
         }
-        if (newBid.compareTo(auction.getCurrentHighestBid()) <= 0) {
+        boolean hasBids = auction.getHighestBidderId() != null;
+        boolean tooLow = hasBids
+                ? newBid.compareTo(auction.getCurrentHighestBid()) <= 0   // must beat existing bid
+                : newBid.compareTo(auction.getCurrentHighestBid()) < 0;   // must meet starting price
+
+        if (tooLow) {
             return Map.of("success", false, "reason", "FAIL_BID_TOO_LOW",
                     "currentHighestBid", auction.getCurrentHighestBid(),
-                    "highestBidderId", auction.getHighestBidderId(),
-                    "message", "Your bid must be greater than the current highest bid of $"
-                            + auction.getCurrentHighestBid() + ".");
+                    "highestBidderId", auction.getHighestBidderId() != null ? auction.getHighestBidderId() : "none",
+                    "message", hasBids
+                            ? "Your bid must be greater than the current highest bid of $" + auction.getCurrentHighestBid() + "."
+                            : "Your bid must be at least the starting price of $" + auction.getCurrentHighestBid() + ".");
         }
 
-        // Record bid
+        // Record bid and update auction atomically (same transaction)
         Bid bid = new Bid();
         bid.setAuctionId(auction.getId());
         bid.setUserId(req.getUserId());
@@ -72,7 +101,6 @@ public class AuctionService {
         bid.setTimestamp(LocalDateTime.now());
         bidRepository.save(bid);
 
-        // Update auction
         auction.setCurrentHighestBid(newBid);
         auction.setHighestBidderId(req.getUserId());
         auction.setHighestBidderUsername(req.getUsername());
@@ -80,7 +108,6 @@ public class AuctionService {
 
         long secondsRemaining = java.time.Duration.between(LocalDateTime.now(), auction.getEndTime()).getSeconds();
 
-        // Broadcast bid update to all browsers watching this auction
         messagingTemplate.convertAndSend(
                 "/topic/auction/" + req.getItemId(),
                 Map.of(
@@ -140,22 +167,57 @@ public class AuctionService {
                 .orElse(List.of());
     }
 
-    // Scheduled task: automatically close auctions when timer expires
-    @Scheduled(fixedDelay = 10000) // runs every 10 seconds
+    @Scheduled(fixedDelayString = "${auction.close.interval.ms:10000}")
+    @Transactional
     public void closeExpiredAuctions() {
-        List<Auction> openAuctions = auctionRepository.findAll().stream()
-                .filter(a -> a.getStatus() == Auction.AuctionStatus.OPEN)
-                .filter(a -> LocalDateTime.now().isAfter(a.getEndTime()))
-                .toList();
-
-        for (Auction auction : openAuctions) {
+        List<Auction> expired = auctionRepository.findExpiredOpenAuctions(LocalDateTime.now());
+        for (Auction auction : expired) {
             auction.setStatus(Auction.AuctionStatus.CLOSED);
             auctionRepository.save(auction);
-            System.out.println("Auction closed for itemId=" + auction.getItemId()
+            System.out.println("[Scheduler] Closed auction for itemId=" + auction.getItemId()
                     + ", winner=" + auction.getHighestBidderUsername());
         }
     }
 
+    public List<Map<String, Object>> getEndedAuctions() {
+        return auctionRepository.findByStatusOrderByEndTimeDesc(Auction.AuctionStatus.CLOSED)
+                .stream()
+                .map(a -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("itemId", a.getItemId());
+                    m.put("auctionId", a.getId());
+                    m.put("finalBid", a.getCurrentHighestBid());
+                    m.put("winnerId", a.getHighestBidderId() != null ? a.getHighestBidderId() : "none");
+                    m.put("winnerUsername", a.getHighestBidderUsername() != null ? a.getHighestBidderUsername() : "none");
+                    m.put("endTime", a.getEndTime());
+                    return m;
+                })
+                .collect(Collectors.toList());
+    }
+
+    public List<Map<String, Object>> getUserBidHistory(Long userId) {
+        return bidRepository.findByUserIdOrderByTimestampDesc(userId)
+                .stream()
+                .map(bid -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("bidId", bid.getId());
+                    m.put("amount", bid.getAmount());
+                    m.put("timestamp", bid.getTimestamp());
+                    auctionRepository.findById(bid.getAuctionId()).ifPresent(auction -> {
+                        m.put("itemId", auction.getItemId());
+                        m.put("auctionStatus", auction.getStatus());
+                        m.put("finalBid", auction.getCurrentHighestBid());
+                        boolean isWinner = auction.getHighestBidderId() != null
+                                && auction.getHighestBidderId().toString().equals(userId.toString())
+                                && auction.getStatus() == Auction.AuctionStatus.CLOSED;
+                        m.put("won", isWinner);
+                    });
+                    return m;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
     public Map<String, Object> closeAuction(Long itemId) {
         return auctionRepository.findByItemId(itemId).map(auction -> {
             auction.setStatus(Auction.AuctionStatus.CLOSED);

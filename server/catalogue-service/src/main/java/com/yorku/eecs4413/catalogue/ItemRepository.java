@@ -1,11 +1,10 @@
 package com.yorku.eecs4413.catalogue;
 
-
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ItemRepository extends JpaRepository<Item, Long> {
@@ -19,4 +18,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
             "LOWER(i.description) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
             "AND i.status = 'ACTIVE'")
     List<Item> searchByKeyword(@Param("keyword") String keyword);
+
+    // For auto-expiring items whose auction time has passed
+    List<Item> findByStatusAndAuctionEndTimeBefore(Item.ItemStatus status, LocalDateTime time);
 }

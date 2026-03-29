@@ -2,30 +2,53 @@
 const _homeEndTimes = {}; // { itemId: endTimeMs }
 
 async function renderHome(container) {
+  // Hero is injected outside #main so it spans full width
+  let hero = document.getElementById('home-hero');
+  if (!hero) {
+    hero = document.createElement('div');
+    hero.id = 'home-hero';
+    hero.className = 'home-hero';
+    document.getElementById('main').before(hero);
+  }
+  hero.innerHTML = `
+    <canvas id="hero-canvas" class="hero-canvas"></canvas>
+    <div class="home-hero-inner">
+      <h1 class="home-hero-title">Live <em>Auctions</em><br>happening now</h1>
+      <p class="home-hero-sub">Place your bid before the timer runs out. Highest bid wins.</p>
+      <div class="home-hero-search">
+        <div class="hero-search-wrap">
+          <span class="hero-search-icon">🔍</span>
+          <input type="text" id="search-input" class="hero-search-input" placeholder="Search items…">
+        </div>
+        <button class="btn-hero-search" onclick="doSearch()">Search</button>
+        <button class="btn-hero-all" onclick="clearSearch()">All Items</button>
+      </div>
+    </div>`;
+
   container.innerHTML = `
-    <div class="page-header">
-      <div class="page-title">Live Auctions</div>
-      <div class="page-subtitle">Browse and bid on unique items from sellers around the world</div>
-    </div>
-    <div class="search-bar">
-      <input class="form-input" type="text" id="search-input" placeholder="Search by name or description…">
-      <button class="btn btn-dark" onclick="doSearch()">Search</button>
-      <button class="btn btn-outline" onclick="clearSearch()">Clear</button>
-    </div>
-    <div class="categories">
+    <div class="home-filters">
+      <span class="filter-label">Category:</span>
       <button class="cat-btn active" data-cat="" onclick="filterCategory(this)">All</button>
-      <button class="cat-btn" data-cat="Electronics" onclick="filterCategory(this)">💻 Electronics</button>
-      <button class="cat-btn" data-cat="Accessories" onclick="filterCategory(this)">⌚ Accessories</button>
-      <button class="cat-btn" data-cat="Antiques"    onclick="filterCategory(this)">🏺 Antiques</button>
-      <button class="cat-btn" data-cat="Sports"      onclick="filterCategory(this)">🚴 Sports</button>
-      <button class="cat-btn" data-cat="Furniture"   onclick="filterCategory(this)">🛋️ Furniture</button>
+      <button class="cat-btn" data-cat="Electronics" onclick="filterCategory(this)">Electronics</button>
+      <button class="cat-btn" data-cat="Accessories" onclick="filterCategory(this)">Accessories</button>
+      <button class="cat-btn" data-cat="Antiques"    onclick="filterCategory(this)">Antiques</button>
+      <button class="cat-btn" data-cat="Sports"      onclick="filterCategory(this)">Sports</button>
+      <button class="cat-btn" data-cat="Furniture"   onclick="filterCategory(this)">Furniture</button>
     </div>
+    <p class="results-info" id="results-info"></p>
     <div id="items-grid" class="items-grid">
       <div class="loading"><div class="spinner"></div><span>Loading auctions…</span></div>
     </div>`;
 
   document.getElementById('search-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') doSearch();
+  });
+
+  startCanvasEffect('hero-canvas', hero);
+
+  registerCleanup(() => {
+    const h = document.getElementById('home-hero');
+    if (h) h.remove();
   });
 
   await loadAllItems();
@@ -94,31 +117,49 @@ function showGridError(msg) {
   if (grid) grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">⚠️</div><div class="empty-state-title">${msg}</div></div>`;
 }
 
-function renderItemGrid(items) {
+async function renderItemGrid(items) {
   const grid = document.getElementById('items-grid');
   if (!grid) return;
+  const info = document.getElementById('results-info');
   if (!items.length) {
+    if (info) info.textContent = '';
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">📭</div><div class="empty-state-title">No auctions found</div><p>Try a different search or category</p></div>`;
     return;
   }
+  if (info) info.innerHTML = `Showing <strong>${items.length}</strong> active auction${items.length !== 1 ? 's' : ''}`;
   // Register end times for live timer
   items.forEach(item => {
-    if (item.auctionEndTime) _homeEndTimes[item.id] = new Date(item.auctionEndTime).getTime();
+    if (item.auctionEndTime) _homeEndTimes[item.id] = new Date(item.auctionEndTime + 'Z').getTime();
   });
-  grid.innerHTML = items.map(item => buildItemCard(item)).join('');
+
+  // Fetch all auction states in parallel
+  const auctionResults = await Promise.all(items.map(item => Api.getAuctionState(item.id)));
+  const auctionMap = {};
+  items.forEach((item, i) => {
+    if (auctionResults[i].ok) auctionMap[item.id] = auctionResults[i].data;
+  });
+
+  grid.innerHTML = items.map(item => buildItemCard(item, auctionMap[item.id])).join('');
 }
 
-function buildItemCard(item) {
+function buildItemCard(item, auction) {
   const emoji    = categoryEmoji(item.category);
   const badgeCls = categoryBadgeClass(item.category);
-  const endMs    = item.auctionEndTime ? new Date(item.auctionEndTime).getTime() : 0;
+  const endMs    = item.auctionEndTime ? new Date(item.auctionEndTime + 'Z').getTime() : 0;
   const secsLeft = Math.max(0, Math.floor((endMs - Date.now()) / 1000));
   const cd       = formatCountdown(secsLeft);
   const isEnded  = secsLeft <= 0;
 
+  const hasBids  = auction && auction.highestBidderId && String(auction.highestBidderId) !== 'none';
+  const bidLabel = hasBids ? 'Current Bid' : 'Starting At';
+  const bidValue = hasBids ? auction.currentHighestBid : item.startingPrice;
+
   return `
     <div class="item-card" onclick="navigate('#/item/${item.id}')">
-      <div class="item-card-thumb">${emoji}</div>
+      <div class="item-card-thumb">
+        ${emoji}
+        ${!isEnded ? `<span class="live-badge-card"><span class="live-badge-dot"></span>LIVE</span>` : ''}
+      </div>
       <div class="item-card-body">
         <div class="item-card-header">
           <div class="item-card-name">${item.name}</div>
@@ -127,8 +168,8 @@ function buildItemCard(item) {
         <div class="item-card-desc">${item.description || 'No description provided.'}</div>
         <div class="item-card-footer">
           <div>
-            <div class="bid-label">Starting at</div>
-            <div class="bid-amount">${formatMoney(item.startingPrice)}</div>
+            <div class="bid-label">${bidLabel}</div>
+            <div class="bid-amount">${formatMoney(bidValue)}</div>
           </div>
           ${isEnded
             ? `<span class="countdown ended">Ended</span>`

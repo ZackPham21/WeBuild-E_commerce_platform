@@ -2,7 +2,9 @@ package com.yorku.eecs4413.gateway;
 
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,7 +63,7 @@ public class GatewayService {
             ResponseEntity<Map> resp = restTemplate.exchange(
                     iamUrl + "/api/iam/validate", HttpMethod.GET,
                     new HttpEntity<>(headers), Map.class);
-            return resp.getBody();
+            return resp.getBody() != null ? resp.getBody() : Map.of("valid", false);
         } catch (HttpClientErrorException e) {
             return Map.of("valid", false);
         }
@@ -89,9 +91,44 @@ public class GatewayService {
         return restTemplate.getForEntity(catalogueUrl + "/api/catalogue/items/" + itemId, Object.class);
     }
 
+    @SuppressWarnings("unchecked")
     public ResponseEntity<?> addItem(String token, Map<String, Object> body) {
         if (!isSessionValid(token)) return unauthorized();
-        return restTemplate.postForEntity(catalogueUrl + "/api/catalogue/items", body, Map.class);
+
+        // Create item in catalogue
+        ResponseEntity<Map> itemResp;
+        try {
+            itemResp = restTemplate.postForEntity(
+                    catalogueUrl + "/api/catalogue/items", body, Map.class);
+        } catch (HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAs(Map.class));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to create item: " + e.getMessage()));
+        }
+
+        Map<String, Object> item = (Map<String, Object>) itemResp.getBody();
+        if (item == null) {
+            return ResponseEntity.status(500).body(Map.of("error", "Empty response from catalogue service."));
+        }
+
+        Object itemIdObj = item.get("id");
+        Object startingPriceObj = body.get("startingPrice");
+        Object auctionEndTimeObj = body.get("auctionEndTime");
+
+        // Create matching auction in auction service
+        if (itemIdObj != null && startingPriceObj != null && auctionEndTimeObj != null) {
+            try {
+                Map<String, Object> auctionBody = new HashMap<>();
+                auctionBody.put("itemId", Long.valueOf(itemIdObj.toString()));
+                auctionBody.put("startingPrice", new java.math.BigDecimal(startingPriceObj.toString()));
+                auctionBody.put("endTime", auctionEndTimeObj.toString());
+                restTemplate.postForEntity(auctionUrl + "/api/auction/create", auctionBody, Map.class);
+            } catch (Exception e) {
+                System.out.println("Warning: Could not create auction for itemId=" + itemIdObj + ": " + e.getMessage());
+            }
+        }
+
+        return itemResp;
     }
 
     @SuppressWarnings("unchecked")
@@ -105,8 +142,13 @@ public class GatewayService {
             if (item == null) {
                 return ResponseEntity.status(404).body(Map.of("error", "Item not found."));
             }
-            Long sellerId = Long.valueOf(item.get("sellerId").toString());
-            Long userId = Long.valueOf(session.get("userId").toString());
+            Object sellerIdObj = item.get("sellerId");
+            Object userIdObj = session.get("userId");
+            if (sellerIdObj == null || userIdObj == null) {
+                return ResponseEntity.status(500).body(Map.of("error", "Could not verify item ownership."));
+            }
+            Long sellerId = Long.valueOf(sellerIdObj.toString());
+            Long userId = Long.valueOf(userIdObj.toString());
             if (!sellerId.equals(userId)) {
                 return ResponseEntity.status(403).body(Map.of("error", "You can only delete your own items."));
             }
@@ -131,7 +173,7 @@ public class GatewayService {
 
         Map<String, Object> bidBody = new HashMap<>();
         bidBody.put("itemId", req.getItemId());
-        bidBody.put("userId", session.get("userId"));
+        bidBody.put("userId", Long.valueOf(session.get("userId").toString()));
         bidBody.put("username", session.get("username"));
         bidBody.put("amount", req.getAmount());
 
@@ -153,14 +195,63 @@ public class GatewayService {
         return restTemplate.getForEntity(auctionUrl + "/api/auction/bids/" + itemId, Object.class);
     }
 
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> getEndedAuctions(String token) {
+        if (!isSessionValid(token)) return unauthorized();
+        ResponseEntity<List> auctionResp = restTemplate.getForEntity(
+                auctionUrl + "/api/auction/ended", List.class);
+        List<Map<String, Object>> auctions = auctionResp.getBody();
+        if (auctions == null) return ResponseEntity.ok(List.of());
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> auction : auctions) {
+            Map<String, Object> combined = new HashMap<>(auction);
+            Object itemIdObj = auction.get("itemId");
+            if (itemIdObj != null) {
+                try {
+                    ResponseEntity<Map> itemResp = restTemplate.getForEntity(
+                            catalogueUrl + "/api/catalogue/items/" + itemIdObj, Map.class);
+                    if (itemResp.getBody() != null) combined.put("item", itemResp.getBody());
+                } catch (Exception ignored) {}
+            }
+            result.add(combined);
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    public ResponseEntity<?> getUserBidHistory(String token) {
+        Map<String, Object> session = validateSession(token);
+        if (!(boolean) session.getOrDefault("valid", false)) return unauthorized();
+        Long userId = Long.valueOf(session.get("userId").toString());
+        return restTemplate.getForEntity(auctionUrl + "/api/auction/my-bids/" + userId, Object.class);
+    }
+
     // ─── Payment Facade ───────────────────────────────────────────
 
     public ResponseEntity<?> processPayment(String token, GatewayPaymentRequest req) {
         Map<String, Object> session = validateSession(token);
         if (!(boolean) session.getOrDefault("valid", false)) return unauthorized();
 
-        Long userId = Long.valueOf(session.get("userId").toString());
-        String username = session.get("username").toString();
+        Object userIdObj = session.get("userId");
+        Object usernameObj = session.get("username");
+        if (userIdObj == null || usernameObj == null) {
+            return ResponseEntity.status(500).body(Map.of("error", "Session data incomplete."));
+        }
+        Long userId = Long.valueOf(userIdObj.toString());
+        String username = usernameObj.toString();
+
+        // Fetch buyer address from IAM
+        Map<String, Object> addressData = new HashMap<>();
+        try {
+            ResponseEntity<Map> addressResp = restTemplate.exchange(
+                    iamUrl + "/api/iam/user/" + userId + "/address", HttpMethod.GET,
+                    new HttpEntity<>(bearerHeaders(token)), Map.class);
+            if (addressResp.getBody() != null) {
+                addressData = addressResp.getBody();
+            }
+        } catch (Exception e) {
+            System.out.println("Warning: Could not fetch address for userId=" + userId);
+        }
 
         // Get auction state (works for both OPEN and CLOSED)
         ResponseEntity<Map> auctionStateResp;
@@ -185,17 +276,19 @@ public class GatewayService {
         BigDecimal winningBid = new BigDecimal(auctionData.get("currentHighestBid").toString());
 
         // Get shipping details
-        ResponseEntity<Map> shippingResp;
+        Map<String, Object> shippingData;
         try {
-            shippingResp = restTemplate.getForEntity(
+            ResponseEntity<Map> shippingResp = restTemplate.getForEntity(
                     catalogueUrl + "/api/catalogue/items/" + req.getItemId() + "/shipping", Map.class);
+            shippingData = shippingResp.getBody();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Could not fetch shipping details."));
         }
-
-        Map<String, Object> shippingData = shippingResp.getBody();
+        if (shippingData == null || shippingData.get("shippingCost") == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Shipping cost unavailable."));
+        }
         BigDecimal shippingCost = new BigDecimal(shippingData.get("shippingCost").toString());
-        BigDecimal expeditedCost = req.isExpedited()
+        BigDecimal expeditedCost = req.isExpedited() && shippingData.get("expeditedShippingCost") != null
                 ? new BigDecimal(shippingData.get("expeditedShippingCost").toString())
                 : BigDecimal.ZERO;
 
@@ -212,6 +305,7 @@ public class GatewayService {
         payBody.put("cardHolderName", req.getCardHolderName());
         payBody.put("expirationDate", req.getExpirationDate());
         payBody.put("securityCode", req.getSecurityCode());
+        payBody.put("shippingAddress", addressData);
 
         try {
             ResponseEntity<Map> resp = restTemplate.postForEntity(

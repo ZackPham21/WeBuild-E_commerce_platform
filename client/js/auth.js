@@ -1,14 +1,14 @@
-// ── Auth state (localStorage) ──────────────────────────────────────────────
+// sessionStorage keeps each tab's session independent, so two accounts can run side-by-side
 const Auth = {
-  getToken:   () => localStorage.getItem('wb_token'),
-  getUser:    () => { try { return JSON.parse(localStorage.getItem('wb_user')); } catch { return null; } },
-  isLoggedIn: () => !!localStorage.getItem('wb_token'),
+  getToken:   () => sessionStorage.getItem('wb_token'),
+  getUser:    () => { try { return JSON.parse(sessionStorage.getItem('wb_user')); } catch { return null; } },
+  isLoggedIn: () => !!sessionStorage.getItem('wb_token'),
   setAuth(token, userId, username) {
-    localStorage.setItem('wb_token', token);
-    localStorage.setItem('wb_user', JSON.stringify({ userId, username }));
+    sessionStorage.setItem('wb_token', token);
+    sessionStorage.setItem('wb_user', JSON.stringify({ userId, username }));
   },
   clear() {
-    localStorage.removeItem('wb_token');
-    localStorage.removeItem('wb_user');
+    sessionStorage.removeItem('wb_token');
+    sessionStorage.removeItem('wb_user');
   },
 };
