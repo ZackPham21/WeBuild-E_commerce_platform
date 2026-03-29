@@ -3,6 +3,7 @@ package com.yorku.eecs4413.iam;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,9 @@ public class IAMService {
 
     @Autowired
     private SessionRepository sessionRepository;
+
+    @Value("${iam.session.expiry.hours:24}")
+    private int sessionExpiryHours;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -54,7 +58,7 @@ public class IAMService {
         }
 
         String token = UUID.randomUUID().toString();
-        Session session = new Session(token, user.getId(), LocalDateTime.now().plusHours(24));
+        Session session = new Session(token, user.getId(), LocalDateTime.now().plusHours(sessionExpiryHours));
         sessionRepository.save(session);
 
         return Map.of("success", true, "token", token, "userId", user.getId(), "username", user.getUsername());

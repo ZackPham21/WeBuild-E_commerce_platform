@@ -127,8 +127,9 @@ function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
   }
 
   // ── OPEN ─────────────────────────────────────────────────────────────────
-  const cd      = formatCountdown(secsLeft);
-  const minNext = Math.ceil(Number(currentBid)) + 1;
+  const cd        = formatCountdown(secsLeft);
+  const minNext   = noBids ? Math.ceil(Number(currentBid)) : Math.ceil(Number(currentBid)) + 1;
+  const isWinning = user && !noBids && String(user.userId) === String(auction.highestBidderId);
 
   return `
     <div class="section-label" style="text-align:center">Time Remaining</div>
@@ -144,15 +145,20 @@ function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
 
     <div id="bid-alert"></div>
 
-    <form class="bid-form" id="bid-form" autocomplete="off">
-      <div class="bid-input-wrapper">
-        <span class="bid-currency">$</span>
-        <input class="form-input" type="number" id="bid-amount"
-               placeholder="${minNext}" min="${minNext}" step="1" required>
-      </div>
-      <p class="bid-hint">Whole numbers only · must beat ${formatMoney(currentBid)}</p>
-      <button class="btn btn-primary btn-full btn-lg" type="submit" id="bid-submit">Place Bid</button>
-    </form>`;
+    ${isWinning
+      ? `<div class="alert alert-success" style="text-align:center;margin:0">
+           🏆 You're the highest bidder! Wait for someone to outbid you.
+         </div>`
+      : `<form class="bid-form" id="bid-form" autocomplete="off">
+           <div class="bid-input-wrapper">
+             <span class="bid-currency">$</span>
+             <input class="form-input" type="number" id="bid-amount"
+                    placeholder="${minNext}" min="${minNext}" step="1" required>
+           </div>
+           <p class="bid-hint">Whole numbers only · ${noBids ? `starting at ${formatMoney(currentBid)}` : `must beat ${formatMoney(currentBid)}`}</p>
+           <button class="btn btn-primary btn-full btn-lg" type="submit" id="bid-submit">Place Bid</button>
+         </form>`
+    }`;
 }
 
 function buildCountdownUnits(cd) {

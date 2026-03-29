@@ -41,6 +41,16 @@ public class AuctionController {
         return ResponseEntity.ok(auctionService.getBidHistory(itemId));
     }
 
+    @GetMapping("/ended")
+    public ResponseEntity<?> getEndedAuctions() {
+        return ResponseEntity.ok(auctionService.getEndedAuctions());
+    }
+
+    @GetMapping("/my-bids/{userId}")
+    public ResponseEntity<?> getUserBidHistory(@PathVariable Long userId) {
+        return ResponseEntity.ok(auctionService.getUserBidHistory(userId));
+    }
+
     @PostMapping("/close/{itemId}")
     public ResponseEntity<?> closeAuction(@PathVariable Long itemId) {
         return ResponseEntity.ok(auctionService.closeAuction(itemId));

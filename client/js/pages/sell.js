@@ -1,8 +1,7 @@
-// ── Sell an Item ───────────────────────────────────────────────────────────
 function renderSell(container) {
   const user = Auth.getUser();
 
-  // Default auction end = 7 days from now, formatted for datetime-local input
+  // Default end time is 7 days from now, pre-filled into the datetime-local input
   const defaultEnd = new Date(Date.now() + 7 * 86400000);
   const pad = n => String(n).padStart(2, '0');
   const defaultEndStr = `${defaultEnd.getFullYear()}-${pad(defaultEnd.getMonth()+1)}-${pad(defaultEnd.getDate())}T${pad(defaultEnd.getHours())}:${pad(defaultEnd.getMinutes())}`;
@@ -98,9 +97,9 @@ function renderSell(container) {
     const shipDays = parseInt(document.getElementById('sell-ship-days').value)   || 1;
     const expdCost = parseFloat(document.getElementById('sell-expd-cost').value) || 0;
 
-    if (!name) { errEl.innerHTML = `<div class="alert alert-error">Item name is required.</div>`; return; }
-    if (!price || price < 1) { errEl.innerHTML = `<div class="alert alert-error">Starting price must be at least $1.</div>`; return; }
-    if (!endInput) { errEl.innerHTML = `<div class="alert alert-error">Auction end time is required.</div>`; return; }
+    if (!name)              { errEl.innerHTML = `<div class="alert alert-error">Item name is required.</div>`; return; }
+    if (!price || price < 1){ errEl.innerHTML = `<div class="alert alert-error">Starting price must be at least $1.</div>`; return; }
+    if (!endInput)          { errEl.innerHTML = `<div class="alert alert-error">Auction end time is required.</div>`; return; }
     if (new Date(endInput) <= new Date()) { errEl.innerHTML = `<div class="alert alert-error">End time must be in the future.</div>`; return; }
 
     submitBtn.disabled    = true;

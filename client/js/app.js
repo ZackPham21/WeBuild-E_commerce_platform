@@ -1,11 +1,8 @@
-// ── Globals ────────────────────────────────────────────────────────────────
 let _cleanupFns = [];
 function registerCleanup(fn) { _cleanupFns.push(fn); }
 
-// ── Navigation helpers ─────────────────────────────────────────────────────
 function navigate(hash) { window.location.hash = hash; }
 
-// ── Toast ──────────────────────────────────────────────────────────────────
 function toast(msg, type = 'info') {
   const el = document.createElement('div');
   el.className = `toast toast-${type}`;
@@ -14,18 +11,20 @@ function toast(msg, type = 'info') {
   setTimeout(() => el.remove(), 3200);
 }
 
-// ── Shared helpers ─────────────────────────────────────────────────────────
 function categoryEmoji(cat) {
   const map = { electronics: '💻', accessories: '⌚', antiques: '🏺', sports: '🚴', furniture: '🛋️', clothing: '👗', jewelry: '💎', art: '🎨', books: '📚' };
   return map[(cat || '').toLowerCase()] || '📦';
 }
+
 function categoryBadgeClass(cat) {
   const map = { electronics: 'badge-electronics', accessories: 'badge-accessories', antiques: 'badge-antiques', sports: 'badge-sports', furniture: 'badge-furniture' };
   return map[(cat || '').toLowerCase()] || 'badge-default';
 }
+
 function formatMoney(n) {
   return '$' + Number(n).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
 function formatCountdown(seconds) {
   if (seconds <= 0) return { text: 'Ended', urgency: 'ended', d: 0, h: 0, m: 0, s: 0 };
   const d = Math.floor(seconds / 86400);
@@ -36,52 +35,178 @@ function formatCountdown(seconds) {
   const text = d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
   return { text, urgency, d, h, m, s };
 }
+
 function formatDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('en-CA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-// ── Purchases tracking (localStorage) ────────────────────────────────────
+// Purchases are stored per-tab so different accounts don't bleed into each other
 const Purchases = {
-  get() { try { return JSON.parse(localStorage.getItem('wb_purchases') || '[]'); } catch { return []; } },
+  get() { try { return JSON.parse(sessionStorage.getItem('wb_purchases') || '[]'); } catch { return []; } },
   add(itemId) {
     const list = Purchases.get();
-    if (!list.includes(Number(itemId))) { list.push(Number(itemId)); localStorage.setItem('wb_purchases', JSON.stringify(list)); }
+    if (!list.includes(Number(itemId))) { list.push(Number(itemId)); sessionStorage.setItem('wb_purchases', JSON.stringify(list)); }
   },
 };
 
-// ── Pre-seeded test accounts ───────────────────────────────────────────────
-const TEST_ACCOUNTS = [
-  { username: 'winner789', password: 'WinPass!1',    label: 'winner789 (Buyer)'  },
-  { username: 'loser456',  password: 'LosePass!1',   label: 'loser456 (Buyer)'   },
-  { username: 'seller1',   password: 'SellerPass!1', label: 'seller1 (Seller)'   },
-];
+// Canvas particle effect with mouse-tracking glow — used on the home hero and login panel
+function startCanvasEffect(canvasId, parent) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
 
-// ── Nav ────────────────────────────────────────────────────────────────────
+  function resize() {
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const mouse  = { x: -999, y: -999, active: false };
+  const smooth = { x: -999, y: -999 };
+
+  function onMouseMove(e) {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+    mouse.active = true;
+  }
+  function onMouseLeave() { mouse.active = false; }
+  parent.addEventListener('mousemove', onMouseMove);
+  parent.addEventListener('mouseleave', onMouseLeave);
+
+  const particles = Array.from({ length: 60 }, () => spawnParticle(true));
+
+  function spawnParticle(randomY = false) {
+    return {
+      x:     Math.random() * canvas.width,
+      y:     randomY ? Math.random() * canvas.height : canvas.height + 10,
+      r:     Math.random() * 1.8 + 0.4,
+      vx:    (Math.random() - 0.5) * 0.4,
+      vy:    -(Math.random() * 0.5 + 0.25),
+      alpha: Math.random() * 0.5 + 0.1,
+      pulse: Math.random() * Math.PI * 2,
+    };
+  }
+
+  let raf;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Lerp smooths the glow so it lags behind the cursor slightly
+    smooth.x += (mouse.x - smooth.x) * 0.07;
+    smooth.y += (mouse.y - smooth.y) * 0.07;
+
+    if (mouse.active) {
+      const grad = ctx.createRadialGradient(smooth.x, smooth.y, 0, smooth.x, smooth.y, 260);
+      grad.addColorStop(0,    'rgba(200, 80, 42, 0.13)');
+      grad.addColorStop(0.35, 'rgba(200, 80, 42, 0.07)');
+      grad.addColorStop(0.7,  'rgba(200, 80, 42, 0.02)');
+      grad.addColorStop(1,    'rgba(200, 80, 42, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    for (const p of particles) {
+      p.pulse += 0.02;
+      p.x += p.vx;
+      p.y += p.vy;
+      const a = p.alpha * (0.6 + 0.4 * Math.sin(p.pulse));
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200, 80, 42, ${a})`;
+      ctx.fill();
+
+      // Small white offset gives a sparkle/ember feel
+      ctx.beginPath();
+      ctx.arc(p.x + p.r * 0.5, p.y - p.r * 0.5, p.r * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.6})`;
+      ctx.fill();
+
+      if (p.y < -10 || p.x < -10 || p.x > canvas.width + 10) {
+        Object.assign(p, spawnParticle());
+      }
+    }
+
+    raf = requestAnimationFrame(draw);
+  }
+
+  draw();
+
+  registerCleanup(() => {
+    cancelAnimationFrame(raf);
+    window.removeEventListener('resize', resize);
+    parent.removeEventListener('mousemove', onMouseMove);
+    parent.removeEventListener('mouseleave', onMouseLeave);
+  });
+}
+
+function showModal({ title, body, confirmText = 'Confirm', confirmClass = 'btn-danger', onConfirm }) {
+  const existing = document.getElementById('wb-modal-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'wb-modal-overlay';
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <div class="modal-title">${title}</div>
+        <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">${body}</div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn ${confirmClass}" id="modal-confirm-btn">${confirmText}</button>
+      </div>
+    </div>`;
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('modal-open'));
+
+  document.getElementById('modal-confirm-btn').addEventListener('click', () => {
+    closeModal();
+    onConfirm();
+  });
+}
+
+function closeModal() {
+  const overlay = document.getElementById('wb-modal-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('modal-open');
+  overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
+}
+
 function renderNav() {
-  const user    = Auth.getUser();
-  const options = TEST_ACCOUNTS.map(a =>
-    `<option value="${a.username}" ${user?.username === a.username ? 'selected' : ''}>${a.label}</option>`
-  ).join('');
+  const user = Auth.getUser();
 
   document.getElementById('header').innerHTML = `
     <nav class="nav">
       <div class="nav-brand" onclick="navigate('#/')">We<span>Build</span></div>
       <div class="nav-spacer"></div>
       <div class="nav-right">
-        <select class="nav-select" id="account-select" onchange="switchAccount(this.value)">
-          ${!user ? `<option value="">— Pick account —</option>` : ''}
-          ${options}
-        </select>
-        <div class="nav-menu" id="nav-menu">
-          <button class="nav-menu-btn" onclick="toggleNavMenu(event)">☰ Menu</button>
-          <div class="nav-dropdown" id="nav-dropdown">
-            <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/sell')">🏷️ Sell an Item</button>
-            <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/my-listings')">📦 My Listings</button>
-            <div class="nav-dropdown-divider"></div>
-            <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/purchases')">🧾 My Purchases</button>
+        ${user ? `
+          <span class="nav-user-label">Signed in as <strong>${user.username}</strong></span>
+          <div class="nav-menu" id="nav-menu">
+            <button class="nav-menu-btn" onclick="toggleNavMenu(event)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <div class="nav-dropdown" id="nav-dropdown">
+              <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/sell')"><span class="nav-dropdown-icon">🏷️</span> Sell an Item</button>
+              <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/my-listings')"><span class="nav-dropdown-icon">📦</span> My Listings</button>
+              <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/purchases')"><span class="nav-dropdown-icon">🧾</span> My Purchases</button>
+              <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/ended')"><span class="nav-dropdown-icon">🏁</span> Past Auctions</button>
+              <div class="nav-dropdown-divider"></div>
+              <button class="nav-dropdown-item nav-dropdown-item-danger" onclick="closeNavMenu(); doLogout()"><span class="nav-dropdown-icon">🚪</span> Log Out</button>
+            </div>
           </div>
-        </div>
+        ` : `
+          <button class="btn btn-outline nav-auth-btn" onclick="navigate('#/login')">Log In</button>
+          <button class="btn btn-primary nav-auth-btn" onclick="navigate('#/signup')">Sign Up</button>
+        `}
       </div>
     </nav>`;
 }
@@ -90,40 +215,23 @@ function toggleNavMenu(e) {
   e.stopPropagation();
   document.getElementById('nav-dropdown').classList.toggle('open');
 }
+
 function closeNavMenu() {
   document.getElementById('nav-dropdown')?.classList.remove('open');
 }
 
-// Close dropdown on outside click
 document.addEventListener('click', () => closeNavMenu());
 
-async function switchAccount(username) {
-  if (!username) return;
-  const account = TEST_ACCOUNTS.find(a => a.username === username);
-  if (!account) return;
-  const res = await Api.signin(account.username, account.password);
-  if (res.ok && res.data.success) {
-    Auth.setAuth(res.data.token, res.data.userId, res.data.username);
-    renderNav();
-    toast(`Signed in as ${account.username}`, 'success');
-    route();
-  } else {
-    toast('Sign-in failed. Is the server running?', 'error');
-  }
+async function doLogout() {
+  await Api.signout();
+  Auth.clear();
+  renderNav();
+  toast('Signed out successfully.', 'info');
+  navigate('#/login');
 }
 
-// ── Auto sign-in ───────────────────────────────────────────────────────────
-async function ensureAuth() {
-  if (Auth.isLoggedIn()) return true;
-  const res = await Api.signin(TEST_ACCOUNTS[0].username, TEST_ACCOUNTS[0].password);
-  if (res.ok && res.data.success) {
-    Auth.setAuth(res.data.token, res.data.userId, res.data.username);
-    return true;
-  }
-  return false;
-}
+const PUBLIC_ROUTES = ['#/login', '#/signup'];
 
-// ── Router ─────────────────────────────────────────────────────────────────
 async function route() {
   _cleanupFns.forEach(fn => { try { fn(); } catch {} });
   _cleanupFns = [];
@@ -131,22 +239,34 @@ async function route() {
   const hash = window.location.hash || '#/';
   const main = document.getElementById('main');
 
-  const authed = await ensureAuth();
   renderNav();
 
-  if (!authed) {
-    main.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-title">Cannot connect to server</div><p style="margin-top:8px">Make sure all 5 Spring Boot services are running, then refresh.</p></div>`;
+  if (hash !== '#/' && hash !== '#') {
+    const h = document.getElementById('home-hero');
+    if (h) h.remove();
+  }
+
+  if (!Auth.isLoggedIn() && !PUBLIC_ROUTES.includes(hash)) {
+    navigate('#/login');
     return;
   }
 
-  if      (hash === '#/' || hash === '#')     renderHome(main);
-  else if (hash.startsWith('#/item/'))        renderItem(main, hash.split('/')[2]);
-  else if (hash.startsWith('#/payment/'))     renderPayment(main, hash.split('/')[2]);
-  else if (hash.startsWith('#/receipt/'))     renderReceipt(main, hash.split('/')[2]);
-  else if (hash === '#/sell')                 renderSell(main);
-  else if (hash === '#/my-listings')          renderMyListings(main);
-  else if (hash === '#/purchases')            renderPurchases(main);
-  else                                        navigate('#/');
+  if (Auth.isLoggedIn() && PUBLIC_ROUTES.includes(hash)) {
+    navigate('#/');
+    return;
+  }
+
+  if      (hash === '#/' || hash === '#')  renderHome(main);
+  else if (hash === '#/login')             renderLogin(main);
+  else if (hash === '#/signup')            renderSignup(main);
+  else if (hash.startsWith('#/item/'))     renderItem(main, hash.split('/')[2]);
+  else if (hash.startsWith('#/payment/'))  renderPayment(main, hash.split('/')[2]);
+  else if (hash.startsWith('#/receipt/'))  renderReceipt(main, hash.split('/')[2]);
+  else if (hash === '#/sell')              renderSell(main);
+  else if (hash === '#/my-listings')       renderMyListings(main);
+  else if (hash === '#/purchases')         renderPurchases(main);
+  else if (hash === '#/ended')             renderEndedAuctions(main);
+  else                                     navigate('#/');
 }
 
 window.addEventListener('hashchange', route);

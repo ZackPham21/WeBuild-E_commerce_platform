@@ -1,4 +1,3 @@
-// ── Receipt ────────────────────────────────────────────────────────────────
 async function renderReceipt(container, itemId) {
   container.innerHTML = '<div class="loading"><div class="spinner"></div><span>Loading receipt…</span></div>';
 
@@ -23,19 +22,16 @@ async function renderReceipt(container, itemId) {
 
   const r    = receiptRes.data;
   const item = itemRes.ok ? itemRes.data : null;
-  const shippingLabel = r.expedited ? 'Expedited' : 'Standard';
 
   container.innerHTML = `
     <div class="receipt-wrap">
       <div class="card">
-        <!-- Header -->
         <div class="receipt-header">
           <div class="receipt-icon">✅</div>
           <div class="receipt-title">Payment Confirmed</div>
           <div class="receipt-sub">Receipt #${r.receiptId} · ${formatDate(r.processedAt)}</div>
         </div>
 
-        <!-- Item info -->
         <div style="margin-bottom:20px">
           <div class="section-label">Item Purchased</div>
           <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
@@ -47,7 +43,6 @@ async function renderReceipt(container, itemId) {
           </div>
         </div>
 
-        <!-- Payment breakdown -->
         <div style="margin-bottom:20px">
           <div class="section-label">Payment Breakdown</div>
           <div class="receipt-row">
@@ -59,7 +54,7 @@ async function renderReceipt(container, itemId) {
             <span class="receipt-row-val">${formatMoney(r.winningBid)}</span>
           </div>
           <div class="receipt-row">
-            <span class="receipt-row-lbl">Shipping (${shippingLabel})</span>
+            <span class="receipt-row-lbl">Shipping (${r.expedited ? 'Expedited' : 'Standard'})</span>
             <span class="receipt-row-val">${formatMoney(r.shippingCost)}</span>
           </div>
           <div class="receipt-row">
@@ -72,7 +67,6 @@ async function renderReceipt(container, itemId) {
           </div>
         </div>
 
-        <!-- Footer -->
         <div style="text-align:center;padding-top:20px;border-top:1px solid var(--border)">
           <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
             Thank you for your purchase on WeBuild! Your item is on its way.

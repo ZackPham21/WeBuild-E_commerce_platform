@@ -1,4 +1,3 @@
-// ── Payment Form ───────────────────────────────────────────────────────────
 async function renderPayment(container, itemId) {
   container.innerHTML = '<div class="loading"><div class="spinner"></div><span>Loading payment details…</span></div>';
 
@@ -15,7 +14,6 @@ async function renderPayment(container, itemId) {
   const item   = itemRes.data;
   const winner = winnerRes.data;
 
-  // Auction still open or no winner yet
   if (!winnerRes.ok || winner?.error) {
     container.innerHTML = `
       <div class="empty-state">
@@ -41,9 +39,9 @@ async function renderPayment(container, itemId) {
     return;
   }
 
-  const winningBid  = Number(winner.winningBid);
-  const stdShip     = Number(item.shippingCost)          || 0;
-  const expdShip    = Number(item.expeditedShippingCost) || 0;
+  const winningBid = Number(winner.winningBid);
+  const stdShip    = Number(item.shippingCost)          || 0;
+  const expdShip   = Number(item.expeditedShippingCost) || 0;
 
   container.innerHTML = `
     <div class="back-btn" onclick="navigate('#/item/${itemId}')">← Back to Auction</div>
@@ -54,10 +52,8 @@ async function renderPayment(container, itemId) {
     </div>
 
     <div class="payment-grid">
-      <!-- Payment form -->
       <div class="card">
         <h2 style="font-size:17px;font-weight:700;margin-bottom:20px">Card Details</h2>
-
         <div id="pay-error"></div>
 
         <form id="pay-form" autocomplete="off" novalidate>
@@ -68,19 +64,16 @@ async function renderPayment(container, itemId) {
           </div>
           <div class="form-group">
             <label class="form-label">Cardholder Name</label>
-            <input class="form-input" type="text" id="pay-name"
-                   placeholder="John Doe" required>
+            <input class="form-input" type="text" id="pay-name" placeholder="John Doe" required>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Expiry Date</label>
-              <input class="form-input" type="text" id="pay-expiry"
-                     placeholder="MM/YY" maxlength="5" required>
+              <input class="form-input" type="text" id="pay-expiry" placeholder="MM/YY" maxlength="5" required>
             </div>
             <div class="form-group">
               <label class="form-label">CVV</label>
-              <input class="form-input" type="text" id="pay-cvv"
-                     placeholder="123" maxlength="4" required>
+              <input class="form-input" type="text" id="pay-cvv" placeholder="123" maxlength="4" required>
             </div>
           </div>
 
@@ -114,7 +107,6 @@ async function renderPayment(container, itemId) {
         </form>
       </div>
 
-      <!-- Order summary sidebar -->
       <div>
         <div class="card" style="margin-bottom:16px">
           <h2 style="font-size:16px;font-weight:700;margin-bottom:16px">Order Summary</h2>
@@ -146,7 +138,6 @@ async function renderPayment(container, itemId) {
       </div>
     </div>`;
 
-  // ── Input formatting ───────────────────────────────────────────────────
   document.getElementById('pay-card').addEventListener('input', e => {
     let v = e.target.value.replace(/\D/g, '').slice(0, 16);
     e.target.value = v.replace(/(.{4})/g, '$1 ').trim();
@@ -162,7 +153,6 @@ async function renderPayment(container, itemId) {
     e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
   });
 
-  // ── Form submit ────────────────────────────────────────────────────────
   document.getElementById('pay-form').addEventListener('submit', async e => {
     e.preventDefault();
     const errEl     = document.getElementById('pay-error');
@@ -198,10 +188,8 @@ function onShippingChange(winningBid, stdShip, expdShip) {
   const expedited = document.querySelector('input[name="shipping"]:checked')?.value === 'expedited';
   const shipping  = expedited ? expdShip : stdShip;
 
-  const summaryShipping = document.getElementById('summary-shipping');
-  const summaryTotal    = document.getElementById('summary-total');
-  if (summaryShipping) summaryShipping.textContent = formatMoney(shipping);
-  if (summaryTotal)    summaryTotal.textContent    = formatMoney(winningBid + shipping);
+  document.getElementById('summary-shipping')?.textContent && (document.getElementById('summary-shipping').textContent = formatMoney(shipping));
+  document.getElementById('summary-total')?.textContent    && (document.getElementById('summary-total').textContent    = formatMoney(winningBid + shipping));
 
   document.getElementById('opt-std')?.classList.toggle('selected', !expedited);
   document.getElementById('opt-expd')?.classList.toggle('selected', expedited);
