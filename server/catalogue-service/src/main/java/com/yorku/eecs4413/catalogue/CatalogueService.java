@@ -1,11 +1,13 @@
 package com.yorku.eecs4413.catalogue;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CatalogueService {
@@ -13,6 +15,7 @@ public class CatalogueService {
     @Autowired
     private ItemRepository itemRepository;
 
+    @Transactional
     public Item addItem(AddItemRequest req) {
         Item item = new Item();
         item.setName(req.getName());
@@ -29,7 +32,15 @@ public class CatalogueService {
         return itemRepository.save(item);
     }
 
+    @Transactional
     public List<Item> getAllActiveItems() {
+        // Auto-expire any ACTIVE items whose auction end time has passed
+        List<Item> expired = itemRepository.findByStatusAndAuctionEndTimeBefore(
+                Item.ItemStatus.ACTIVE, LocalDateTime.now());
+        if (!expired.isEmpty()) {
+            expired.forEach(item -> item.setStatus(Item.ItemStatus.ENDED));
+            itemRepository.saveAll(expired);
+        }
         return itemRepository.findByStatus(Item.ItemStatus.ACTIVE);
     }
 
@@ -54,6 +65,7 @@ public class CatalogueService {
         )).orElse(Map.of("error", "Item not found"));
     }
 
+    @Transactional
     public boolean removeItem(Long itemId) {
         if (itemRepository.existsById(itemId)) {
             itemRepository.deleteById(itemId);
@@ -62,6 +74,7 @@ public class CatalogueService {
         return false;
     }
 
+    @Transactional
     public Item markItemEnded(Long itemId) {
         return itemRepository.findById(itemId).map(item -> {
             item.setStatus(Item.ItemStatus.ENDED);
@@ -69,6 +82,7 @@ public class CatalogueService {
         }).orElse(null);
     }
 
+    @Transactional
     public Map<String, Object> markAsSold(Long itemId) {
         return itemRepository.findById(itemId).map(item -> {
             item.setStatus(Item.ItemStatus.SOLD);

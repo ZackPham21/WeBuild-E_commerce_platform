@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 public class CreateAuctionRequest {
     private Long itemId;
     private BigDecimal startingPrice;
-    private LocalDateTime endTime;
+    private String endTime;
 
     public Long getItemId() { return itemId; }
     public void setItemId(Long itemId) { this.itemId = itemId; }
@@ -14,6 +14,12 @@ public class CreateAuctionRequest {
     public BigDecimal getStartingPrice() { return startingPrice; }
     public void setStartingPrice(BigDecimal startingPrice) { this.startingPrice = startingPrice; }
 
-    public LocalDateTime getEndTime() { return endTime; }
-    public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
+    public String getEndTime() { return endTime; }
+    public void setEndTime(String endTime) { this.endTime = endTime; }
+
+    public LocalDateTime getParsedEndTime() {
+        if (endTime == null) return null;
+        // Strip trailing Z if present, then parse as LocalDateTime
+        return LocalDateTime.parse(endTime.replace("Z", ""));
+    }
 }
