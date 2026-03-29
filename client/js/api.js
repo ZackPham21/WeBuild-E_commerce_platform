@@ -37,6 +37,8 @@ const Api = {
   getEndedAuctions:  ()               => Api._req('GET',  '/auction/ended'),
   getMyBidHistory:   ()               => Api._req('GET',  '/auction/my-bids'),
 
+  prompt: (prompt) => Api._req('POST', '/chatbot', { prompt }),
+
   processPayment: (itemId, expedited, cardNumber, cardHolderName, expirationDate, securityCode) =>
     Api._req('POST', '/payment', { itemId, expedited, cardNumber, cardHolderName, expirationDate, securityCode }),
   getReceipt: (id) => Api._req('GET', `/payment/receipt/${id}`),

@@ -14,6 +14,8 @@ public class GatewayController {
 
     @Autowired
     private GatewayService gatewayService;
+    @Autowired
+    private GatewayChatbotService gatewayChatbotService;
 
     // ─── IAM ─────────────────────────────────────────────────────
     @PostMapping("/signup")
@@ -136,5 +138,18 @@ public class GatewayController {
     public ResponseEntity<?> getReceipt(@RequestHeader("Authorization") String auth,
                                         @PathVariable Long itemId) {
         return gatewayService.getReceipt(auth.replace("Bearer ", ""), itemId);
+    }
+    
+ // ─── Chatbot ──────────────────────────────────────────────────
+    @PostMapping("/chatbot")
+    public ResponseEntity<?> chat(@RequestHeader("Authorization") String auth,
+                                  @RequestBody Map<String, Object> body) {
+        try {
+            return gatewayChatbotService.prompt(body);
+        } catch (HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAs(Map.class));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
     }
 }
