@@ -30,6 +30,7 @@ async function renderHome(container) {
 
   await loadAllItems();
   startHomeTimers();
+  await buildChatBotButton();
 }
 
 function startHomeTimers() {
@@ -106,6 +107,112 @@ function renderItemGrid(items) {
     if (item.auctionEndTime) _homeEndTimes[item.id] = new Date(item.auctionEndTime).getTime();
   });
   grid.innerHTML = items.map(item => buildItemCard(item)).join('');
+}
+
+async function buildChatBotButton() {
+  const existing = document.getElementById('chatbot');
+  if (existing) return; // Prevent duplicates on re-render
+
+  const button = document.createElement('button');
+  button.id          = 'chatbot';
+  button.textContent = 'Chat Assistant';
+
+  button.addEventListener('click', () => buildChatBotWindow());
+
+  document.body.appendChild(button);
+}
+
+// ── Chatbot Window ─────────────────────────────────────────────────────────
+async function buildChatBotWindow() {
+  // Prevent duplicate windows
+  if (document.getElementById('chatbot-window')) return;
+
+  // ── Build window container ───────────────────────────────────────────────
+  const window = document.createElement('div');
+  window.id = 'chatbot-window';
+  window.innerHTML = `
+    <div id="chatbot-header">
+      <span> AI Chat Assistant</span>
+      <button id="chatbot-close" onclick="closeChatBotWindow()">✕</button>
+    </div>
+
+    <div id="chatbot-messages">
+      <div class="chatbot-msg chatbot-msg--ai">
+        Hello, I am your AI assistant, please type in your question.
+      </div>
+    </div>
+
+    <div id="chatbot-input-row">
+      <input
+        id="chatbot-input"
+        type="text"
+        placeholder="Type your question…"
+      />
+      <button id="chatbot-submit">Send</button>
+    </div>`;
+
+  document.body.appendChild(window);
+
+  // ── Submit on button click or Enter key ───────────────────────────────────
+  document.getElementById('chatbot-submit').addEventListener('click', () => submitChatBotPrompt());
+  document.getElementById('chatbot-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitChatBotPrompt();
+  });
+}
+
+// ── Submit Prompt ──────────────────────────────────────────────────────────
+async function submitChatBotPrompt() {
+  const input    = document.getElementById('chatbot-input');
+  const messages = document.getElementById('chatbot-messages');
+  const userText = input?.value?.trim();
+
+  if (!userText) return;
+
+  messages.innerHTML += `
+    <div class="chatbot-msg chatbot-msg--user">
+      ${userText}
+    </div>`;
+
+  const loadingId = `chatbot-loading-${Date.now()}`;
+  messages.innerHTML += `
+    <div class="chatbot-msg chatbot-msg--ai" id="${loadingId}">
+      <div class="spinner"></div> Thinking…
+    </div>`;
+
+  input.value    = '';
+  input.disabled = true;
+  messages.scrollTop = messages.scrollHeight;
+  try {
+    const res = await Api.prompt(userText);
+    // Remove loading indicator
+    document.getElementById(loadingId)?.remove();
+    if (!res.ok) throw new Error('Bad response');
+
+    // Display AI response
+    const aiText = res.data?.response ?? res.data?.message ?? JSON.stringify(res.data);
+    messages.innerHTML += `
+      <div class="chatbot-msg chatbot-msg--ai">
+        ${aiText}
+      </div>`;
+
+  } catch {
+	alert(JSON.stringify(res.data))
+    document.getElementById(loadingId)?.remove();
+    messages.innerHTML += `
+      <div class="chatbot-msg chatbot-msg--error">
+        Sorry, we could not answer this question. Please try again.
+      </div>`;
+	
+  } finally {
+    input.disabled = false;
+    input.focus();
+    messages.scrollTop = messages.scrollHeight;
+  }
+}
+
+
+function closeChatBotWindow() {
+  document.getElementById('chatbot-window')?.remove();
 }
 
 function buildItemCard(item) {

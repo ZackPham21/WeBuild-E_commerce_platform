@@ -42,4 +42,7 @@ const Api = {
   processPayment: (itemId, expedited, cardNumber, cardHolderName, expirationDate, securityCode) =>
     Api._req('POST', '/payment', { itemId, expedited, cardNumber, cardHolderName, expirationDate, securityCode }),
   getReceipt: (id) => Api._req('GET', `/payment/receipt/${id}`),
+  
+  // ── Chatbot ───────────────────────────────────────────────────────────────
+  prompt: (prompt) => Api._req('POST', '/chatbot', { prompt })
 };
