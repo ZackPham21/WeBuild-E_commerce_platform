@@ -43,7 +43,9 @@ public class CatalogueService {
         }
         return itemRepository.findByStatus(Item.ItemStatus.ACTIVE);
     }
-
+    public List<Item> getItemsBySeller(Long sellerId) {
+        return itemRepository.findBySellerId(sellerId);
+    }
     public List<Item> searchByKeyword(String keyword) {
         return itemRepository.searchByKeyword(keyword);
     }

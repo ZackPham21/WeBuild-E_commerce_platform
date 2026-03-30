@@ -12,7 +12,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     List<Item> findByStatus(Item.ItemStatus status);
 
     List<Item> findByCategoryAndStatus(String category, Item.ItemStatus status);
-
+    List<Item> findBySellerId(Long sellerId);
     @Query("SELECT i FROM Item i WHERE " +
             "(LOWER(i.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(i.description) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +

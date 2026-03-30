@@ -37,7 +37,9 @@ const Api = {
   getBidHistory:     (id)             => Api._req('GET',  `/auction/bids/${id}`),
   getEndedAuctions:  ()               => Api._req('GET',  '/auction/ended'),
   getMyBidHistory:   ()               => Api._req('GET',  '/auction/my-bids'),
-
+  getItemsBySeller: (sellerId) => Api._req('GET', `/items/seller/${sellerId}`),
+  getAllItemsIncludingEnded: () => Api._req('GET', `/items/all`),
+  getEndedItems:    ()         => Api._req('GET', `/items/ended`),
   prompt: (prompt) => Api._req('POST', '/chatbot', { prompt }),
 
   processPayment: (itemId, expedited, cardNumber, cardHolderName, expirationDate, securityCode) =>

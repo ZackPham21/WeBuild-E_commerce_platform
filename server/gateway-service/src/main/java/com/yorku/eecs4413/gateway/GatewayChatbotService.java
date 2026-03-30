@@ -70,7 +70,7 @@ public class GatewayChatbotService {
 
             // ── Submit to Gemini API ───────────────────────────────
             GenerateContentResponse response = client.models.generateContent(
-                    "gemini-3.1-flash-lite",
+                    "gemini-2.0-flash-lite",
                     prompt,
                     null
             );

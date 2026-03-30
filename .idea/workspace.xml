@@ -4,10 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3e236a00-972c-4f11-9470-d5e7ba208d28" name="Changes" comment="List items bug fixed">
+    <list default="true" id="3e236a00-972c-4f11-9470-d5e7ba208d28" name="Changes" comment="Live update bug fixed">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/app.html" beforeDir="false" afterPath="$PROJECT_DIR$/client/app.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/js/api.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/api.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client/js/pages/item.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/pages/item.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/js/pages/my-listings.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/pages/my-listings.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/js/pages/sell.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/pages/sell.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/CatalogueController.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/CatalogueController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/CatalogueService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/CatalogueService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/ItemRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/ItemRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/gateway-service/src/main/java/com/yorku/eecs4413/gateway/GatewayChatbotService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/gateway-service/src/main/java/com/yorku/eecs4413/gateway/GatewayChatbotService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/payment-service/src/main/java/com/yorku/eecs4413/payment/PaymentService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/payment-service/src/main/java/com/yorku/eecs4413/payment/PaymentService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -204,7 +211,14 @@
       <option name="project" value="LOCAL" />
       <updated>1774805298944</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="Live update bug fixed">
+      <created>1774806844959</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1774806844959</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -225,6 +239,7 @@
     <MESSAGE value="Websocket" />
     <MESSAGE value="." />
     <MESSAGE value="List items bug fixed" />
-    <option name="LAST_COMMIT_MESSAGE" value="List items bug fixed" />
+    <MESSAGE value="Live update bug fixed" />
+    <option name="LAST_COMMIT_MESSAGE" value="Live update bug fixed" />
   </component>
 </project>

@@ -17,14 +17,23 @@ async function renderItem(container, itemId) {
     return;
   }
 
-  const item    = itemRes.data;
-  const auction = auctionRes.ok ? auctionRes.data : null;
-  const user    = Auth.getUser();
+  const item = itemRes.data;
+
+  // Handle race condition: auction may not exist yet if item was just listed
+  let auction = auctionRes.ok && !auctionRes.data?.error ? auctionRes.data : null;
+  if (!auction) {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const retryRes = await Api.getAuctionState(itemId);
+    auction = retryRes.ok && !retryRes.data?.error ? retryRes.data : null;
+  }
+
+  const user = Auth.getUser();
 
   // Calculate time locally from end time string to avoid server timezone issues
-  const endTimeMs = item.auctionEndTime
-    ? new Date(item.auctionEndTime + (item.auctionEndTime.endsWith('Z') ? '' : 'Z')).getTime()
-    : 0;
+  const endTimeStr = item.auctionEndTime
+      ? (item.auctionEndTime.endsWith('Z') ? item.auctionEndTime : item.auctionEndTime + 'Z')
+      : null;
+  const endTimeMs = endTimeStr ? new Date(endTimeStr).getTime() : 0;
   const secsLeft = Math.max(0, Math.floor((endTimeMs - Date.now()) / 1000));
   const isOpen   = auction?.status === 'OPEN' && secsLeft > 0;
 
@@ -76,18 +85,16 @@ async function renderItem(container, itemId) {
         <div class="card auction-panel" id="auction-panel">
           ${buildAuctionPanel(item, auction, isOpen, user, secsLeft)}
         </div>
-        <div class="ws-status" id="ws-status" style="margin-top:8px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;padding:0 4px">
+        <div style="margin-top:8px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;padding:0 4px">
           <div id="ws-dot" style="width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0"></div>
           <span id="ws-label">Connecting to live updates…</span>
         </div>
       </div>
     </div>`;
 
-  // Load bid history
   loadBidHistory(itemId);
   buildChatBotButton();
 
-  // Wire up bid form and live updates if auction is open
   if (isOpen) {
     wireBidForm(itemId, auction);
     startLiveUpdates(itemId, item, secsLeft);
@@ -100,7 +107,11 @@ function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
     return `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-title">Auction data unavailable</div></div>`;
   }
 
-  const noBids     = !auction.highestBidderId || String(auction.highestBidderId) === 'none';
+  // Robust noBids check — handles null, undefined, 0, and the string "none"
+  const noBids = !auction.highestBidderId
+    || auction.highestBidderId === 0
+    || String(auction.highestBidderId).toLowerCase() === 'none';
+
   const currentBid = auction.currentHighestBid;
   const bidderName = auction.highestBidderUsername;
 
@@ -137,8 +148,14 @@ function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
   }
 
   // ── OPEN ───────────────────────────────────────────────────────────────
-  const cd      = formatCountdown(secsLeft);
-  const minNext = noBids ? Math.ceil(Number(currentBid)) : Math.ceil(Number(currentBid)) + 1;
+  const cd = formatCountdown(secsLeft);
+
+  // When no bids: starting price is acceptable (>= currentBid)
+  // When bids exist: must strictly beat current bid (> currentBid)
+  const minNext   = noBids
+    ? Math.ceil(Number(currentBid))
+    : Math.ceil(Number(currentBid)) + 1;
+
   const isWinning = user && !noBids && String(user.userId) === String(auction.highestBidderId);
 
   return `
@@ -165,7 +182,11 @@ function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
              <input class="form-input" type="number" id="bid-amount"
                     placeholder="${minNext}" min="${minNext}" step="1" required>
            </div>
-           <p class="bid-hint">Whole numbers only · ${noBids ? `starting at ${formatMoney(currentBid)}` : `must beat ${formatMoney(currentBid)}`}</p>
+           <p class="bid-hint" id="bid-hint">
+             Whole numbers only · ${noBids
+               ? `minimum bid: ${formatMoney(currentBid)}`
+               : `must beat ${formatMoney(currentBid)}`}
+           </p>
            <button class="btn btn-primary btn-full btn-lg" type="submit" id="bid-submit">Place Bid</button>
          </form>`
     }`;
@@ -211,21 +232,27 @@ function wireBidForm(itemId, auction) {
       alertEl.innerHTML = `<div class="alert alert-success">Bid placed successfully!</div>`;
       document.getElementById('bid-amount').value = '';
 
-      // Update live display immediately for the bidder themselves
+      // Update display immediately for the bidder themselves
       const bidVal = document.getElementById('current-bid-value');
       const bidBy  = document.getElementById('current-bid-by');
       if (bidVal) bidVal.textContent = formatMoney(res.data.newHighestBid);
       if (bidBy)  bidBy.textContent  = `by ${res.data.newHighestBidderUsername}`;
 
-      // Bump min bid input
+      // After a successful bid, next bid must strictly beat it
       const minNext  = Math.ceil(Number(res.data.newHighestBid)) + 1;
       const bidInput = document.getElementById('bid-amount');
-      if (bidInput) { bidInput.placeholder = String(minNext); bidInput.min = String(minNext); }
+      if (bidInput) {
+        bidInput.placeholder = String(minNext);
+        bidInput.min         = String(minNext);
+      }
+
+      const hint = document.getElementById('bid-hint');
+      if (hint) hint.textContent = `Whole numbers only · must beat ${formatMoney(res.data.newHighestBid)}`;
 
       await loadBidHistory(itemId);
     } else {
-      const msg   = res.data.message || 'Bid failed.';
-      const extra = res.data.currentHighestBid ? ` (current: ${formatMoney(res.data.currentHighestBid)})` : '';
+      const msg   = res.data?.message || 'Bid failed.';
+      const extra = res.data?.currentHighestBid ? ` (current: ${formatMoney(res.data.currentHighestBid)})` : '';
       alertEl.innerHTML = `<div class="alert alert-error">${msg}${extra}</div>`;
     }
 
@@ -278,18 +305,20 @@ function startLiveUpdates(itemId, item, initialSecs) {
   let secsLeft    = initialSecs;
   let stompClient = null;
 
-  // ── WebSocket for instant bid updates ────────────────────────────────────
   function setWsStatus(connected) {
     const dot   = document.getElementById('ws-dot');
     const label = document.getElementById('ws-label');
-    if (dot)   dot.style.background   = connected ? '#22c55e' : '#ccc';
-    if (label) label.textContent      = connected ? 'Live updates connected' : 'Live updates unavailable — polling every 8s';
+    if (dot)   dot.style.background = connected ? '#22c55e' : '#ccc';
+    if (label) label.textContent    = connected
+      ? 'Live updates connected'
+      : 'Live updates unavailable — polling every 8s';
   }
 
+  // ── WebSocket ────────────────────────────────────────────────────────────
   try {
     const socket = new SockJS('http://localhost:8083/ws');
     stompClient  = Stomp.over(socket);
-    stompClient.debug = null; // silence STOMP frame logs
+    stompClient.debug = null;
 
     stompClient.connect({}, () => {
       console.log('✅ WebSocket connected for item', itemId);
@@ -299,32 +328,28 @@ function startLiveUpdates(itemId, item, initialSecs) {
         const update = JSON.parse(msg.body);
         console.log('📨 Live bid update received:', update);
 
-        // Update bid amount and bidder name instantly
         const bidVal = document.getElementById('current-bid-value');
         const bidBy  = document.getElementById('current-bid-by');
         if (bidVal) {
-          bidVal.textContent   = formatMoney(update.newHighestBid);
-          bidVal.style.color   = 'var(--success, #22c55e)';
+          bidVal.textContent = formatMoney(update.newHighestBid);
+          bidVal.style.color = 'var(--success, #22c55e)';
           setTimeout(() => { bidVal.style.color = ''; }, 1000);
         }
         if (bidBy) bidBy.textContent = `by ${update.newHighestBidderUsername}`;
 
-        // Update minimum bid input
+        // After any bid lands via WebSocket, next bid must strictly beat it
+        const minNext  = Math.ceil(Number(update.newHighestBid)) + 1;
         const bidInput = document.getElementById('bid-amount');
         if (bidInput) {
-          const minNext          = Math.ceil(Number(update.newHighestBid)) + 1;
-          bidInput.placeholder   = String(minNext);
-          bidInput.min           = String(minNext);
+          bidInput.placeholder = String(minNext);
+          bidInput.min         = String(minNext);
         }
 
-        // Update bid hint text
-        const hint = document.querySelector('.bid-hint');
+        const hint = document.getElementById('bid-hint');
         if (hint) hint.textContent = `Whole numbers only · must beat ${formatMoney(update.newHighestBid)}`;
 
-        // Refresh bid history table
         loadBidHistory(itemId);
 
-        // Sync seconds remaining if provided
         if (update.secondsRemaining !== undefined) {
           secsLeft = update.secondsRemaining;
         }
@@ -340,39 +365,52 @@ function startLiveUpdates(itemId, item, initialSecs) {
     setWsStatus(false);
   }
 
-  // ── Countdown ticks every second (local clock) ───────────────────────────
+  // ── Countdown every second ───────────────────────────────────────────────
   const countdownInterval = setInterval(() => {
     if (secsLeft > 0) secsLeft--;
     const cdEl = document.getElementById('countdown-big');
     if (cdEl) cdEl.innerHTML = buildCountdownUnits(formatCountdown(secsLeft));
   }, 1000);
 
-  // ── Poll server every 8 seconds as fallback ──────────────────────────────
+  // ── Poll every 8 seconds as fallback ────────────────────────────────────
   const pollInterval = setInterval(async () => {
     const res = await Api.getAuctionState(itemId);
     if (!res.ok) return;
 
     const auction = res.data;
-    secsLeft      = auction.secondsRemaining ?? 0;
+    secsLeft = auction.secondsRemaining ?? 0;
 
-    // Update bid display from poll
+    // Recalculate noBids from latest poll data
+    const pollNoBids = !auction.highestBidderId
+      || auction.highestBidderId === 0
+      || String(auction.highestBidderId).toLowerCase() === 'none';
+
     const bidVal = document.getElementById('current-bid-value');
     const bidBy  = document.getElementById('current-bid-by');
     if (bidVal) bidVal.textContent = formatMoney(auction.currentHighestBid);
     if (bidBy) {
-      const noBids   = !auction.highestBidderUsername || String(auction.highestBidderUsername) === 'none';
-      bidBy.textContent = noBids ? 'No bids yet — be the first!' : `by ${auction.highestBidderUsername}`;
+      bidBy.textContent = pollNoBids
+        ? 'No bids yet — be the first!'
+        : `by ${auction.highestBidderUsername}`;
     }
 
-    // Update min bid input from poll
+    // Respect noBids state when updating min — same logic as buildAuctionPanel
     const bidInput = document.getElementById('bid-amount');
     if (bidInput) {
-      const minNext        = Math.ceil(Number(auction.currentHighestBid)) + 1;
+      const minNext = pollNoBids
+        ? Math.ceil(Number(auction.currentHighestBid))      // starting price ok
+        : Math.ceil(Number(auction.currentHighestBid)) + 1; // must beat current
       bidInput.placeholder = String(minNext);
       bidInput.min         = String(minNext);
     }
 
-    // Auction ended — stop everything and reload the panel
+    const hint = document.getElementById('bid-hint');
+    if (hint) {
+      hint.textContent = pollNoBids
+        ? `Whole numbers only · minimum bid: ${formatMoney(auction.currentHighestBid)}`
+        : `Whole numbers only · must beat ${formatMoney(auction.currentHighestBid)}`;
+    }
+
     if (auction.status !== 'OPEN' || secsLeft <= 0) {
       clearInterval(countdownInterval);
       clearInterval(pollInterval);
@@ -381,7 +419,7 @@ function startLiveUpdates(itemId, item, initialSecs) {
     }
   }, 8000);
 
-  // ── Cleanup when navigating away ─────────────────────────────────────────
+  // ── Cleanup on navigate away ─────────────────────────────────────────────
   registerCleanup(() => {
     clearInterval(countdownInterval);
     clearInterval(pollInterval);

@@ -31,7 +31,10 @@ public class CatalogueController {
         }
         return ResponseEntity.ok(catalogueService.searchByKeyword(keyword));
     }
-
+    @GetMapping("/items/seller/{sellerId}")
+    public ResponseEntity<List<Item>> getItemsBySeller(@PathVariable Long sellerId) {
+        return ResponseEntity.ok(catalogueService.getItemsBySeller(sellerId));
+    }
     @GetMapping("/items/category/{category}")
     public ResponseEntity<List<Item>> filterByCategory(@PathVariable String category) {
         return ResponseEntity.ok(catalogueService.filterByCategory(category));

@@ -95,7 +95,7 @@ async function renderSell(container) {
     submitBtn.textContent = 'Listing…';
 
   const now = new Date().toISOString().slice(0, 19);
-  const end = endInput.length === 16 ? endInput + ':00' : endInput;
+  const end = new Date(endInput).toISOString().slice(0, 19);
 
   const res = await Api.createItem({
       name,

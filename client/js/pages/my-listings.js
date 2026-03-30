@@ -16,15 +16,16 @@ async function renderMyListings(container) {
       <div class="loading" style="grid-column:1/-1"><div class="spinner"></div><span>Loading…</span></div>
     </div>`;
 
-  const res = await Api.getItems();
-  if (!res.ok) {
-    document.getElementById('listings-panel').innerHTML =
-      `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-title">Failed to load listings</div></div>`;
-    return;
-  }
+ // Replace the single Api.getItems() call with:
+ const res = await Api.getItems();
+ if (!res.ok) {
+     document.getElementById('listings-panel').innerHTML =
+         `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-title">Failed to load listings</div></div>`;
+     return;
+ }
 
-  const all = (Array.isArray(res.data) ? res.data : [])
-    .filter(item => String(item.sellerId) === String(user.userId));
+ const all = (Array.isArray(res.data) ? res.data : [])
+     .filter(item => String(item.sellerId) === String(user.userId));
 
   // Fetch auction state for each in parallel so we know which are live vs ended
   const auctionResults = await Promise.all(all.map(item => Api.getAuctionState(item.id)));
@@ -47,8 +48,10 @@ async function renderMyListings(container) {
    return false;
  });
 
- const endedItems = all.filter(item => !liveItems.includes(item));
-
+ const endedItems = all.filter(item => {
+     const a = auctionMap[item.id];
+     return !a || a.status !== 'OPEN' || (a.secondsRemaining ?? 0) <= 0;
+ });
   // Store for tab switching
   window._myListingsLive  = liveItems;
   window._myListingsEnded = endedItems;
