@@ -39,6 +39,11 @@ public class Item {
     private BigDecimal shippingCost;
     private BigDecimal expeditedShippingCost;
 
+    @Column(columnDefinition = "TEXT")
+    private String imageUrl;
+
+    private String condition;
+
     public enum ItemStatus {
         ACTIVE, ENDED, SOLD
     }
@@ -79,4 +84,10 @@ public class Item {
 
     public BigDecimal getExpeditedShippingCost() { return expeditedShippingCost; }
     public void setExpeditedShippingCost(BigDecimal expeditedShippingCost) { this.expeditedShippingCost = expeditedShippingCost; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public String getCondition() { return condition; }
+    public void setCondition(String condition) { this.condition = condition; }
 }

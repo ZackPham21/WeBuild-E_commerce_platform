@@ -1,10 +1,10 @@
-// ── Item Detail + Bid + Auction Ended / Winner ─────────────────────────────
 async function renderItem(container, itemId) {
   container.innerHTML = '<div class="loading"><div class="spinner"></div><span>Loading auction…</span></div>';
 
-  const [itemRes, auctionRes] = await Promise.all([
+  const [itemRes, auctionRes, receiptRes] = await Promise.all([
     Api.getItem(itemId),
     Api.getAuctionState(itemId),
+    Api.isPaid(itemId),
   ]);
 
   if (!itemRes.ok) {
@@ -27,6 +27,7 @@ async function renderItem(container, itemId) {
     auction = retryRes.ok && !retryRes.data?.error ? retryRes.data : null;
   }
 
+  const isPaid = receiptRes.ok && !receiptRes.data?.error;
   const user = Auth.getUser();
 
   // Calculate time locally from end time string to avoid server timezone issues
@@ -39,6 +40,7 @@ async function renderItem(container, itemId) {
 
   const emoji    = categoryEmoji(item.category);
   const badgeCls = categoryBadgeClass(item.category);
+  const images   = parseImages(item.imageUrl);
 
   container.innerHTML = `
     <div class="back-btn" onclick="navigate('#/')">← Back to Auctions</div>
@@ -46,7 +48,15 @@ async function renderItem(container, itemId) {
     <div class="item-detail-grid">
       <!-- Left column: item info + bid history -->
       <div>
-        <div class="item-hero">${emoji}</div>
+        ${images.length > 0
+          ? `<div class="item-gallery">
+               <img id="gallery-img" src="${images[0]}" alt="${item.name}">
+               ${images.length > 1 ? `
+                 <button class="gallery-nav gallery-prev" onclick="itemGalleryNav(-1)">&#8249;</button>
+                 <button class="gallery-nav gallery-next" onclick="itemGalleryNav(1)">&#8250;</button>
+                 <div class="gallery-counter" id="gallery-counter">1 / ${images.length}</div>` : ''}
+             </div>`
+          : `<div class="item-hero">${emoji}</div>`}
 
         <div class="item-meta">
           <span class="badge ${badgeCls}">${item.category || 'Other'}</span>
@@ -65,6 +75,11 @@ async function renderItem(container, itemId) {
             <div class="spec-label">Seller ID</div>
             <div class="spec-value">#${item.sellerId}</div>
           </div>
+          ${item.condition ? `
+          <div class="spec-item">
+            <div class="spec-label">Condition</div>
+            <div class="spec-value">${item.condition}</div>
+          </div>` : ''}
           <div class="spec-item">
             <div class="spec-label">Standard Shipping</div>
             <div class="spec-value">${formatMoney(item.shippingCost)} · ${item.shippingDays}d</div>
@@ -83,7 +98,7 @@ async function renderItem(container, itemId) {
       <!-- Right column: auction panel -->
       <div>
         <div class="card auction-panel" id="auction-panel">
-          ${buildAuctionPanel(item, auction, isOpen, user, secsLeft)}
+          ${buildAuctionPanel(item, auction, isOpen, user, secsLeft, isPaid)}
         </div>
         <div style="margin-top:8px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;padding:0 4px">
           <div id="ws-dot" style="width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0"></div>
@@ -96,18 +111,34 @@ async function renderItem(container, itemId) {
   buildChatBotButton();
 
   if (isOpen) {
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
     wireBidForm(itemId, auction);
     startLiveUpdates(itemId, item, secsLeft);
   }
+
+  if (images.length > 1) {
+    window._galleryImages = images;
+    window._galleryIndex  = 0;
+  }
 }
 
-// ── Auction panel HTML ─────────────────────────────────────────────────────
-function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
+function itemGalleryNav(dir) {
+  const imgs = window._galleryImages || [];
+  if (!imgs.length) return;
+  window._galleryIndex = (window._galleryIndex + dir + imgs.length) % imgs.length;
+  const img = document.getElementById('gallery-img');
+  const ctr = document.getElementById('gallery-counter');
+  if (img) img.src = imgs[window._galleryIndex];
+  if (ctr) ctr.textContent = `${window._galleryIndex + 1} / ${imgs.length}`;
+}
+
+function buildAuctionPanel(item, auction, isOpen, user, secsLeft, isPaid = false) {
   if (!auction) {
     return `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-title">Auction data unavailable</div></div>`;
   }
 
-  // Robust noBids check — handles null, undefined, 0, and the string "none"
   const noBids = !auction.highestBidderId
     || auction.highestBidderId === 0
     || String(auction.highestBidderId).toLowerCase() === 'none';
@@ -115,7 +146,6 @@ function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
   const currentBid = auction.currentHighestBid;
   const bidderName = auction.highestBidderUsername;
 
-  // ── ENDED ──────────────────────────────────────────────────────────────
   if (!isOpen) {
     if (noBids) {
       return `
@@ -141,22 +171,24 @@ function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
            <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:10px">
              You won! Complete payment to claim your item.
            </p>`
-        : `<div class="alert alert-info" style="margin:0">
-             The winner is completing payment for this item.
-           </div>`
+        : isPaid
+          ? `<div class="alert alert-success" style="margin:0;text-align:center">
+               ✅ This item has been sold and paid.
+             </div>`
+          : `<div class="alert alert-info" style="margin:0">
+               The winner is completing payment for this item.
+             </div>`
       }`;
   }
 
-  // ── OPEN ───────────────────────────────────────────────────────────────
   const cd = formatCountdown(secsLeft);
 
-  // When no bids: starting price is acceptable (>= currentBid)
-  // When bids exist: must strictly beat current bid (> currentBid)
   const minNext   = noBids
     ? Math.ceil(Number(currentBid))
     : Math.ceil(Number(currentBid)) + 1;
 
-  const isWinning = user && !noBids && String(user.userId) === String(auction.highestBidderId);
+  const isWinning  = user && !noBids && String(user.userId) === String(auction.highestBidderId);
+  const isSeller   = user && String(user.userId) === String(item.sellerId);
 
   return `
     <div class="section-label" style="text-align:center">Time Remaining</div>
@@ -172,7 +204,11 @@ function buildAuctionPanel(item, auction, isOpen, user, secsLeft) {
 
     <div id="bid-alert"></div>
 
-    ${isWinning
+    ${isSeller
+      ? `<div class="alert alert-info" style="text-align:center;margin:0">
+           You cannot bid on your own auction.
+         </div>`
+      : isWinning
       ? `<div class="alert alert-success" style="text-align:center;margin:0">
            🏆 You're the highest bidder! Wait for someone to outbid you.
          </div>`
@@ -203,7 +239,6 @@ function buildCountdownUnits(cd) {
     <div class="countdown-unit"><div class="countdown-value">${String(cd.s).padStart(2,'0')}</div><div class="countdown-unit-label">Sec</div></div>`;
 }
 
-// ── Bid form wire-up ───────────────────────────────────────────────────────
 function wireBidForm(itemId, auction) {
   const form = document.getElementById('bid-form');
   if (!form) return;
@@ -261,7 +296,6 @@ function wireBidForm(itemId, auction) {
   });
 }
 
-// ── Bid history ────────────────────────────────────────────────────────────
 async function loadBidHistory(itemId) {
   const section = document.getElementById('bid-history-section');
   if (!section) return;
@@ -300,7 +334,6 @@ async function loadBidHistory(itemId) {
     </table>`;
 }
 
-// ── Live updates: WebSocket + polling fallback ─────────────────────────────
 function startLiveUpdates(itemId, item, initialSecs) {
   let secsLeft    = initialSecs;
   let stompClient = null;
@@ -314,7 +347,6 @@ function startLiveUpdates(itemId, item, initialSecs) {
       : 'Live updates unavailable — polling every 8s';
   }
 
-  // ── WebSocket ────────────────────────────────────────────────────────────
   try {
     const socket = new SockJS('http://localhost:8083/ws');
     stompClient  = Stomp.over(socket);
@@ -350,6 +382,18 @@ function startLiveUpdates(itemId, item, initialSecs) {
 
         loadBidHistory(itemId);
 
+        const currentUser = Auth.getUser();
+        if (currentUser && String(update.newHighestBidderUsername) !== currentUser.username) {
+          if (Notification.permission === 'granted') {
+            new Notification('You have been outbid!', {
+              body: `New highest bid on this item: ${formatMoney(update.newHighestBid)}`,
+              icon: '/favicon.ico',
+            });
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission();
+          }
+        }
+
         if (update.secondsRemaining !== undefined) {
           secsLeft = update.secondsRemaining;
         }
@@ -365,14 +409,12 @@ function startLiveUpdates(itemId, item, initialSecs) {
     setWsStatus(false);
   }
 
-  // ── Countdown every second ───────────────────────────────────────────────
   const countdownInterval = setInterval(() => {
     if (secsLeft > 0) secsLeft--;
     const cdEl = document.getElementById('countdown-big');
     if (cdEl) cdEl.innerHTML = buildCountdownUnits(formatCountdown(secsLeft));
   }, 1000);
 
-  // ── Poll every 8 seconds as fallback ────────────────────────────────────
   const pollInterval = setInterval(async () => {
     const res = await Api.getAuctionState(itemId);
     if (!res.ok) return;
@@ -419,7 +461,6 @@ function startLiveUpdates(itemId, item, initialSecs) {
     }
   }, 8000);
 
-  // ── Cleanup on navigate away ─────────────────────────────────────────────
   registerCleanup(() => {
     clearInterval(countdownInterval);
     clearInterval(pollInterval);

@@ -8,6 +8,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -81,6 +82,43 @@ public class IAMService {
                 .orElse(new SessionValidationResponse(false, null, null));
     }
 
+    public Map<String, Object> updateUserAddress(Long userId, Map<String, String> body) {
+        return userRepository.findById(userId).map(u -> {
+            if (body.containsKey("streetNumber")) u.setStreetNumber(body.get("streetNumber"));
+            if (body.containsKey("streetName"))   u.setStreetName(body.get("streetName"));
+            if (body.containsKey("city"))         u.setCity(body.get("city"));
+            if (body.containsKey("country"))      u.setCountry(body.get("country"));
+            if (body.containsKey("postalCode"))   u.setPostalCode(body.get("postalCode"));
+            userRepository.save(u);
+            return Map.<String, Object>of("success", true, "message", "Address updated.");
+        }).orElse(Map.of("success", false, "message", "User not found."));
+    }
+
+    public Map<String, Object> getUserProfile(Long userId) {
+        return userRepository.findById(userId).map(u -> {
+            Map<String, Object> profile = new HashMap<>();
+            profile.put("userId", u.getId());
+            profile.put("username", u.getUsername());
+            profile.put("firstName", u.getFirstName() != null ? u.getFirstName() : "");
+            profile.put("lastName", u.getLastName() != null ? u.getLastName() : "");
+            profile.put("streetNumber", u.getStreetNumber() != null ? u.getStreetNumber() : "");
+            profile.put("streetName", u.getStreetName() != null ? u.getStreetName() : "");
+            profile.put("city", u.getCity() != null ? u.getCity() : "");
+            profile.put("country", u.getCountry() != null ? u.getCountry() : "");
+            profile.put("postalCode", u.getPostalCode() != null ? u.getPostalCode() : "");
+            return profile;
+        }).orElse(Map.of("error", "User not found"));
+    }
+
+    public Map<String, Object> updateProfile(Long userId, Map<String, String> body) {
+        return userRepository.findById(userId).map(u -> {
+            if (body.containsKey("firstName")) u.setFirstName(body.get("firstName"));
+            if (body.containsKey("lastName"))  u.setLastName(body.get("lastName"));
+            userRepository.save(u);
+            return Map.<String, Object>of("success", true, "message", "Profile updated.");
+        }).orElse(Map.of("success", false, "message", "User not found."));
+    }
+
     public Map<String, Object> getUserAddress(Long userId) {
         return userRepository.findById(userId).map(u -> Map.<String, Object>of(
                 "streetNumber", u.getStreetNumber(),
@@ -89,6 +127,25 @@ public class IAMService {
                 "country", u.getCountry(),
                 "postalCode", u.getPostalCode()
         )).orElse(Map.of("error", "User not found"));
+    }
+
+    public Map<String, Object> changePassword(Long userId, Map<String, String> body) {
+        String currentPassword = body.get("currentPassword");
+        String newPassword     = body.get("newPassword");
+        if (currentPassword == null || newPassword == null) {
+            return Map.of("success", false, "message", "Current and new password are required.");
+        }
+        return userRepository.findById(userId).map(u -> {
+            if (!passwordEncoder.matches(currentPassword, u.getPasswordHash())) {
+                return Map.<String, Object>of("success", false, "message", "Current password is incorrect.");
+            }
+            if (newPassword.length() < 8) {
+                return Map.<String, Object>of("success", false, "message", "New password must be at least 8 characters.");
+            }
+            u.setPasswordHash(passwordEncoder.encode(newPassword));
+            userRepository.save(u);
+            return Map.<String, Object>of("success", true, "message", "Password changed successfully.");
+        }).orElse(Map.of("success", false, "message", "User not found."));
     }
 
     public Map<String, Object> resetPassword(String username) {

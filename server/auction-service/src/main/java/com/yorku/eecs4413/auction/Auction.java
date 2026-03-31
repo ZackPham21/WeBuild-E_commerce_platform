@@ -20,6 +20,8 @@ public class Auction {
     @Column(nullable = false)
     private BigDecimal currentHighestBid;
 
+    private Long sellerId;
+
     private Long highestBidderId;
     private String highestBidderUsername;
 
@@ -42,6 +44,9 @@ public class Auction {
 
     public BigDecimal getCurrentHighestBid() { return currentHighestBid; }
     public void setCurrentHighestBid(BigDecimal currentHighestBid) { this.currentHighestBid = currentHighestBid; }
+
+    public Long getSellerId() { return sellerId; }
+    public void setSellerId(Long sellerId) { this.sellerId = sellerId; }
 
     public Long getHighestBidderId() { return highestBidderId; }
     public void setHighestBidderId(Long highestBidderId) { this.highestBidderId = highestBidderId; }

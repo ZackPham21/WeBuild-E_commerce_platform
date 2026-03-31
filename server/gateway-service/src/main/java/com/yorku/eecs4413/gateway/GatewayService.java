@@ -55,6 +55,103 @@ public class GatewayService {
         return restTemplate.postForEntity(iamUrl + "/api/iam/reset-password", body, Map.class);
     }
 
+    public ResponseEntity<?> getAddress(String token) {
+        Map<String, Object> session = validateSession(token);
+        if (!(boolean) session.getOrDefault("valid", false)) return unauthorized();
+        Long userId = Long.valueOf(session.get("userId").toString());
+        HttpHeaders headers = bearerHeaders(token);
+        return restTemplate.exchange(iamUrl + "/api/iam/user/" + userId + "/address",
+                HttpMethod.GET, new HttpEntity<>(headers), Object.class);
+    }
+
+    public ResponseEntity<?> updateAddress(String token, Map<String, Object> body) {
+        Map<String, Object> session = validateSession(token);
+        if (!(boolean) session.getOrDefault("valid", false)) return unauthorized();
+        Long userId = Long.valueOf(session.get("userId").toString());
+        try {
+            return restTemplate.exchange(iamUrl + "/api/iam/user/" + userId + "/address",
+                    HttpMethod.PUT, new HttpEntity<>(body), Map.class);
+        } catch (HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAs(Map.class));
+        }
+    }
+
+    public ResponseEntity<?> getProfile(String token) {
+        Map<String, Object> session = validateSession(token);
+        if (!(boolean) session.getOrDefault("valid", false)) return unauthorized();
+        Long userId = Long.valueOf(session.get("userId").toString());
+        HttpHeaders headers = bearerHeaders(token);
+        return restTemplate.exchange(iamUrl + "/api/iam/user/" + userId + "/profile",
+                HttpMethod.GET, new HttpEntity<>(headers), Object.class);
+    }
+
+    public ResponseEntity<?> updateProfile(String token, Map<String, Object> body) {
+        Map<String, Object> session = validateSession(token);
+        if (!(boolean) session.getOrDefault("valid", false)) return unauthorized();
+        Long userId = Long.valueOf(session.get("userId").toString());
+        try {
+            return restTemplate.exchange(iamUrl + "/api/iam/user/" + userId + "/profile",
+                    HttpMethod.PUT, new HttpEntity<>(body), Map.class);
+        } catch (HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAs(Map.class));
+        }
+    }
+
+    public ResponseEntity<?> changePassword(String token, Map<String, Object> body) {
+        Map<String, Object> session = validateSession(token);
+        if (!(boolean) session.getOrDefault("valid", false)) return unauthorized();
+        Long userId = Long.valueOf(session.get("userId").toString());
+        try {
+            return restTemplate.exchange(iamUrl + "/api/iam/user/" + userId + "/password",
+                    HttpMethod.PUT, new HttpEntity<>(body), Map.class);
+        } catch (HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAs(Map.class));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> relistItem(String token, Long itemId, Map<String, Object> body) {
+        Map<String, Object> session = validateSession(token);
+        if (!(boolean) session.getOrDefault("valid", false)) return unauthorized();
+
+        try {
+            ResponseEntity<Map> itemResp = restTemplate.getForEntity(
+                    catalogueUrl + "/api/catalogue/items/" + itemId, Map.class);
+            Map<String, Object> item = itemResp.getBody();
+            if (item == null) return ResponseEntity.status(404).body(Map.of("error", "Item not found."));
+            Long sellerId = Long.valueOf(item.get("sellerId").toString());
+            Long userId   = Long.valueOf(session.get("userId").toString());
+            if (!sellerId.equals(userId)) {
+                return ResponseEntity.status(403).body(Map.of("error", "You can only relist your own items."));
+            }
+        } catch (HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAs(Map.class));
+        }
+
+        String newEndTime    = body.get("newEndTime").toString();
+        String startingPrice = body.get("startingPrice").toString();
+
+        try {
+            Map<String, String> catalogueBody = new HashMap<>();
+            catalogueBody.put("newEndTime", newEndTime);
+            restTemplate.postForEntity(catalogueUrl + "/api/catalogue/items/" + itemId + "/relist",
+                    catalogueBody, Map.class);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to relist item: " + e.getMessage()));
+        }
+
+        try {
+            Map<String, Object> auctionBody = new HashMap<>();
+            auctionBody.put("newEndTime", newEndTime);
+            auctionBody.put("startingPrice", new java.math.BigDecimal(startingPrice));
+            restTemplate.postForEntity(auctionUrl + "/api/auction/relist/" + itemId, auctionBody, Map.class);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to reset auction: " + e.getMessage()));
+        }
+
+        return ResponseEntity.ok(Map.of("success", true, "message", "Item relisted successfully."));
+    }
+
     // ─── Session Validation (internal) ────────────────────────────
 
     public Map<String, Object> validateSession(String token) {
@@ -93,7 +190,9 @@ public class GatewayService {
 
     @SuppressWarnings("unchecked")
     public ResponseEntity<?> addItem(String token, Map<String, Object> body) {
-        if (!isSessionValid(token)) return unauthorized();
+        Map<String, Object> session = validateSession(token);
+        if (!(boolean) session.getOrDefault("valid", false)) return unauthorized();
+        Long sellerId = session.get("userId") != null ? Long.valueOf(session.get("userId").toString()) : null;
 
         // Create item in catalogue
         ResponseEntity<Map> itemResp;
@@ -120,6 +219,7 @@ public class GatewayService {
             try {
                 Map<String, Object> auctionBody = new HashMap<>();
                 auctionBody.put("itemId", Long.valueOf(itemIdObj.toString()));
+                auctionBody.put("sellerId", sellerId);
                 auctionBody.put("startingPrice", new java.math.BigDecimal(startingPriceObj.toString()));
                 auctionBody.put("endTime", auctionEndTimeObj.toString());
                 restTemplate.postForEntity(auctionUrl + "/api/auction/create", auctionBody, Map.class);

@@ -1,24 +1,23 @@
 package com.yorku.eecs4413.payment;
 
-
-
 import java.math.BigDecimal;
 
 public class ProcessPaymentRequest {
     private Long itemId;
     private Long userId;
     private String username;
-    private Long winnerId;         // used internally to validate eligibility
+    private Long winnerId;
     private BigDecimal winningBid;
     private BigDecimal shippingCost;
     private boolean expedited;
     private BigDecimal expeditedCost;
 
-    // Card info 
     private String cardNumber;
     private String cardHolderName;
     private String expirationDate;
     private String securityCode;
+
+    private java.util.Map<String, Object> shippingAddress;
 
     public Long getItemId() { return itemId; }
     public void setItemId(Long itemId) { this.itemId = itemId; }
@@ -55,4 +54,7 @@ public class ProcessPaymentRequest {
 
     public String getSecurityCode() { return securityCode; }
     public void setSecurityCode(String securityCode) { this.securityCode = securityCode; }
+
+    public java.util.Map<String, Object> getShippingAddress() { return shippingAddress; }
+    public void setShippingAddress(java.util.Map<String, Object> shippingAddress) { this.shippingAddress = shippingAddress; }
 }

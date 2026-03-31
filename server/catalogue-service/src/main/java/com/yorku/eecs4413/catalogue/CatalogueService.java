@@ -28,7 +28,9 @@ public class CatalogueService {
         item.setShippingDays(req.getShippingDays());
         item.setShippingCost(req.getShippingCost());
         item.setExpeditedShippingCost(req.getExpeditedShippingCost());
-        item.setStatus(Item.ItemStatus.ACTIVE); // ← this line is critical
+        item.setImageUrl(req.getImageUrl());
+        item.setCondition(req.getCondition());
+        item.setStatus(Item.ItemStatus.ACTIVE);
         return itemRepository.save(item);
     }
 
@@ -82,6 +84,16 @@ public class CatalogueService {
             item.setStatus(Item.ItemStatus.ENDED);
             return itemRepository.save(item);
         }).orElse(null);
+    }
+
+    @Transactional
+    public Map<String, Object> relistItem(Long itemId, String newEndTime) {
+        return itemRepository.findById(itemId).map(item -> {
+            item.setStatus(Item.ItemStatus.ACTIVE);
+            item.setAuctionEndTime(java.time.LocalDateTime.parse(newEndTime));
+            itemRepository.save(item);
+            return Map.<String, Object>of("success", true, "message", "Item relisted.");
+        }).orElse(Map.of("success", false, "message", "Item not found."));
     }
 
     @Transactional

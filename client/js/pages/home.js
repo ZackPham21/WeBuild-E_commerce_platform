@@ -1,8 +1,6 @@
-// ── Home / Browse Items ────────────────────────────────────────────────────
 const _homeEndTimes = {}; // { itemId: endTimeMs }
 
 async function renderHome(container) {
-  // Hero is injected outside #main so it spans full width
   let hero = document.getElementById('home-hero');
   if (!hero) {
     hero = document.createElement('div');
@@ -53,7 +51,7 @@ async function renderHome(container) {
 
   await loadAllItems();
   startHomeTimers();
-  await buildChatBotButton();
+  buildChatBotButton();
 }
 
 function startHomeTimers() {
@@ -128,12 +126,10 @@ async function renderItemGrid(items) {
     return;
   }
   if (info) info.innerHTML = `Showing <strong>${items.length}</strong> active auction${items.length !== 1 ? 's' : ''}`;
-  // Register end times for live timer
   items.forEach(item => {
     if (item.auctionEndTime) _homeEndTimes[item.id] = new Date(item.auctionEndTime + 'Z').getTime();
   });
 
-  // Fetch all auction states in parallel
   const auctionResults = await Promise.all(items.map(item => Api.getAuctionState(item.id)));
   const auctionMap = {};
   items.forEach((item, i) => {
@@ -142,108 +138,6 @@ async function renderItemGrid(items) {
 
   grid.innerHTML = items.map(item => buildItemCard(item, auctionMap[item.id])).join('');
 }
-
-async function buildChatBotButton() {
-  const existing = document.getElementById('chatbot');
-  if (existing) return; // Prevent duplicates on re-render
-
-  const button = document.createElement('button');
-  button.id          = 'chatbot';
-  button.textContent = 'Chat Assistant';
-
-  button.addEventListener('click', () => buildChatBotWindow());
-
-  document.body.appendChild(button);
-}
-
-
-async function buildChatBotWindow() {
-  // Prevent duplicate windows
-  if (document.getElementById('chatbot-window')) return;
-  const window = document.createElement('div');
-  window.id = 'chatbot-window';
-  window.innerHTML = `
-    <div id="chatbot-header">
-      <span> AI Chat Assistant</span>
-      <button id="chatbot-close" onclick="closeChatBotWindow()">✕</button>
-    </div>
-
-    <div id="chatbot-messages">
-      <div class="chatbot-msg chatbot-msg--ai">
-        Hello, I am your AI assistant, please type in your question.
-      </div>
-    </div>
-
-    <div id="chatbot-input-row">
-      <input
-        id="chatbot-input"
-        type="text"
-        placeholder="Type your question…"
-      />
-      <button id="chatbot-submit">Send</button>
-    </div>`;
-
-  document.body.appendChild(window);
-  document.getElementById('chatbot-submit').addEventListener('click', () => submitChatBotPrompt());
-  document.getElementById('chatbot-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') submitChatBotPrompt();
-  });
-}
-
-async function submitChatBotPrompt() {
-  const input    = document.getElementById('chatbot-input');
-  const messages = document.getElementById('chatbot-messages');
-  const userText = input?.value?.trim();
-
-  if (!userText) return;
-
-  messages.innerHTML += `
-    <div class="chatbot-msg chatbot-msg--user">
-      ${userText}
-    </div>`;
-
-  const loadingId = `chatbot-loading-${Date.now()}`;
-  messages.innerHTML += `
-    <div class="chatbot-msg chatbot-msg--ai" id="${loadingId}">
-      <div class="spinner"></div> Thinking…
-    </div>`;
-
-  input.value    = '';
-  input.disabled = true;
-  messages.scrollTop = messages.scrollHeight;
-  try {
-    const res = await Api.prompt(userText);
-    // Remove loading indicator
-    document.getElementById(loadingId)?.remove();
-    if (!res.ok) throw new Error('Bad response');
-
-    // Display AI response
-    const aiText = res.data?.response ?? res.data?.message ?? JSON.stringify(res.data);
-    messages.innerHTML += `
-      <div class="chatbot-msg chatbot-msg--ai">
-        ${aiText}
-      </div>`;
-
-  } catch {
-	alert(JSON.stringify(res.data))
-    document.getElementById(loadingId)?.remove();
-    messages.innerHTML += `
-      <div class="chatbot-msg chatbot-msg--error">
-        Sorry, we could not answer this question. Please try again.
-      </div>`;
-	
-  } finally {
-    input.disabled = false;
-    input.focus();
-    messages.scrollTop = messages.scrollHeight;
-  }
-}
-
-
-function closeChatBotWindow() {
-  document.getElementById('chatbot-window')?.remove();
-}
-
 
 function buildItemCard(item, auction) {
   const emoji    = categoryEmoji(item.category);
@@ -257,16 +151,23 @@ function buildItemCard(item, auction) {
   const bidLabel = hasBids ? 'Current Bid' : 'Starting At';
   const bidValue = hasBids ? auction.currentHighestBid : item.startingPrice;
 
+  const firstImg  = parseImages(item.imageUrl)[0] || null;
+  const isWatched = Watchlist.has(item.id);
+
   return `
     <div class="item-card" onclick="navigate('#/item/${item.id}')">
       <div class="item-card-thumb">
-        ${emoji}
+        ${firstImg
+          ? `<img src="${firstImg}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`
+          : emoji}
         ${!isEnded ? `<span class="live-badge-card"><span class="live-badge-dot"></span>LIVE</span>` : ''}
+        <button class="watchlist-heart${isWatched ? ' active' : ''}" onclick="event.stopPropagation(); toggleWatchlistItem(${item.id}, this)" title="${isWatched ? 'Remove from watchlist' : 'Add to watchlist'}">♥</button>
       </div>
       <div class="item-card-body">
         <div class="item-card-header">
           <div class="item-card-name">${item.name}</div>
           <span class="badge ${badgeCls}">${item.category || 'Other'}</span>
+          ${item.condition ? `<span class="badge" style="background:#f3f4f6;color:#374151;font-size:10px">${item.condition}</span>` : ''}
         </div>
         <div class="item-card-desc">${item.description || 'No description provided.'}</div>
         <div class="item-card-footer">

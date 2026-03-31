@@ -5,11 +5,15 @@ import java.time.LocalDateTime;
 
 public class CreateAuctionRequest {
     private Long itemId;
+    private Long sellerId;
     private BigDecimal startingPrice;
     private String endTime;
 
     public Long getItemId() { return itemId; }
     public void setItemId(Long itemId) { this.itemId = itemId; }
+
+    public Long getSellerId() { return sellerId; }
+    public void setSellerId(Long sellerId) { this.sellerId = sellerId; }
 
     public BigDecimal getStartingPrice() { return startingPrice; }
     public void setStartingPrice(BigDecimal startingPrice) { this.startingPrice = startingPrice; }

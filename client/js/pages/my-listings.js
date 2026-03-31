@@ -1,4 +1,3 @@
-// ── My Listings ────────────────────────────────────────────────────────────
 async function renderMyListings(container) {
   const user = Auth.getUser();
 
@@ -16,7 +15,6 @@ async function renderMyListings(container) {
       <div class="loading" style="grid-column:1/-1"><div class="spinner"></div><span>Loading…</span></div>
     </div>`;
 
- // Replace the single Api.getItems() call with:
  const res = await Api.getItems();
  if (!res.ok) {
      document.getElementById('listings-panel').innerHTML =
@@ -27,21 +25,17 @@ async function renderMyListings(container) {
  const all = (Array.isArray(res.data) ? res.data : [])
      .filter(item => String(item.sellerId) === String(user.userId));
 
-  // Fetch auction state for each in parallel so we know which are live vs ended
   const auctionResults = await Promise.all(all.map(item => Api.getAuctionState(item.id)));
   const auctionMap = {};
   all.forEach((item, i) => {
     if (auctionResults[i].ok) auctionMap[item.id] = auctionResults[i].data;
   });
 
-  // Split by status
  const now = Date.now();
 
  const liveItems = all.filter(item => {
    const a = auctionMap[item.id];
-   // Primary check: trust auctionState if available
    if (a && a.status === 'OPEN' && (a.secondsRemaining ?? 0) > 0) return true;
-   // Fallback: compare endTime directly from item data
    if (!a && item.auctionEndTime) {
      return new Date(item.auctionEndTime).getTime() > now;
    }
@@ -52,10 +46,42 @@ async function renderMyListings(container) {
      const a = auctionMap[item.id];
      return !a || a.status !== 'OPEN' || (a.secondsRemaining ?? 0) <= 0;
  });
-  // Store for tab switching
   window._myListingsLive  = liveItems;
   window._myListingsEnded = endedItems;
   window._myListingsAuctionMap = auctionMap;
+
+  const soldItems = endedItems.filter(item => {
+    const a = auctionMap[item.id];
+    return a && a.highestBidderId && String(a.highestBidderId) !== 'none';
+  });
+  const totalRevenue = soldItems.reduce((sum, item) => {
+    const a = auctionMap[item.id];
+    return sum + (a ? Number(a.currentHighestBid) : 0);
+  }, 0);
+  const avgSale = soldItems.length ? totalRevenue / soldItems.length : 0;
+
+  const statsHtml = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:22px;font-weight:700">${liveItems.length}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Live Auctions</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:22px;font-weight:700">${soldItems.length}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Items Sold</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:22px;font-weight:700">${formatMoney(totalRevenue)}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Total Revenue</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:22px;font-weight:700">${soldItems.length ? formatMoney(avgSale) : '—'}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Avg Sale Price</div>
+      </div>
+    </div>`;
+
+  const panel = document.getElementById('listings-panel');
+  if (panel) panel.insertAdjacentHTML('beforebegin', statsHtml);
 
   renderListingsTab('active');
   await buildChatBotButton();
@@ -126,6 +152,7 @@ function buildMyListingCard(item, auction, tab) {
           </div>` : ''}
         <div style="margin-top:12px;display:flex;gap:8px">
           <button class="btn btn-outline" style="flex:1;font-size:13px" onclick="navigate('#/item/${item.id}')">View</button>
+          ${isEnded && noBids ? `<button class="btn btn-primary" style="font-size:13px" onclick="askRelistItem(${item.id}, ${item.startingPrice})">↺ Relist</button>` : ''}
           <button class="btn btn-danger"  style="font-size:13px" onclick="askDeleteListing(${item.id}, '${item.name.replace(/'/g, "\\'")}')">🗑 Delete</button>
         </div>
       </div>
@@ -150,103 +177,34 @@ function askDeleteListing(itemId, itemName) {
   });
 }
 
-async function buildChatBotButton() {
-  const existing = document.getElementById('chatbot');
-  if (existing) return; // Prevent duplicates on re-render
+function askRelistItem(itemId, startingPrice) {
+  const defaultEnd = new Date(Date.now() + 7 * 86400000);
+  const pad = n => String(n).padStart(2, '0');
+  const defaultEndStr = `${defaultEnd.getFullYear()}-${pad(defaultEnd.getMonth()+1)}-${pad(defaultEnd.getDate())}T${pad(defaultEnd.getHours())}:${pad(defaultEnd.getMinutes())}`;
 
-  const button = document.createElement('button');
-  button.id          = 'chatbot';
-  button.textContent = 'Chat Assistant';
-
-  button.addEventListener('click', () => buildChatBotWindow());
-
-  document.body.appendChild(button);
-}
-
-
-async function buildChatBotWindow() {
-  // Prevent duplicate windows
-  if (document.getElementById('chatbot-window')) return;
-  const window = document.createElement('div');
-  window.id = 'chatbot-window';
-  window.innerHTML = `
-    <div id="chatbot-header">
-      <span> AI Chat Assistant</span>
-      <button id="chatbot-close" onclick="closeChatBotWindow()">✕</button>
-    </div>
-
-    <div id="chatbot-messages">
-      <div class="chatbot-msg chatbot-msg--ai">
-        Hello, I am your AI assistant, please type in your question.
-      </div>
-    </div>
-
-    <div id="chatbot-input-row">
-      <input
-        id="chatbot-input"
-        type="text"
-        placeholder="Type your question…"
-      />
-      <button id="chatbot-submit">Send</button>
-    </div>`;
-
-  document.body.appendChild(window);
-  document.getElementById('chatbot-submit').addEventListener('click', () => submitChatBotPrompt());
-  document.getElementById('chatbot-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') submitChatBotPrompt();
+  showModal({
+    title: 'Relist item',
+    body: `
+      <div class="form-group" style="margin:0">
+        <label class="form-label">New auction end date & time</label>
+        <input class="form-input" type="datetime-local" id="relist-endtime" value="${defaultEndStr}">
+      </div>`,
+    confirmText: 'Relist',
+    confirmClass: 'btn-primary',
+    onConfirm: async () => {
+      const endInput = document.getElementById('relist-endtime')?.value;
+      if (!endInput || new Date(endInput) <= new Date()) {
+        toast('End time must be in the future.', 'error');
+        return;
+      }
+      const newEndTime = new Date(endInput).toISOString().slice(0, 19);
+      const res = await Api.relistItem(itemId, newEndTime, startingPrice);
+      if (res.ok && res.data.success) {
+        toast('Item relisted successfully!', 'success');
+        renderMyListings(document.getElementById('main'));
+      } else {
+        toast(res.data?.error || 'Failed to relist item.', 'error');
+      }
+    },
   });
-}
-
-async function submitChatBotPrompt() {
-  const input    = document.getElementById('chatbot-input');
-  const messages = document.getElementById('chatbot-messages');
-  const userText = input?.value?.trim();
-
-  if (!userText) return;
-
-  messages.innerHTML += `
-    <div class="chatbot-msg chatbot-msg--user">
-      ${userText}
-    </div>`;
-
-  const loadingId = `chatbot-loading-${Date.now()}`;
-  messages.innerHTML += `
-    <div class="chatbot-msg chatbot-msg--ai" id="${loadingId}">
-      <div class="spinner"></div> Thinking…
-    </div>`;
-
-  input.value    = '';
-  input.disabled = true;
-  messages.scrollTop = messages.scrollHeight;
-  try {
-    const res = await Api.prompt(userText);
-    // Remove loading indicator
-    document.getElementById(loadingId)?.remove();
-    if (!res.ok) throw new Error('Bad response');
-
-    // Display AI response
-    const aiText = res.data?.response ?? res.data?.message ?? JSON.stringify(res.data);
-    messages.innerHTML += `
-      <div class="chatbot-msg chatbot-msg--ai">
-        ${aiText}
-      </div>`;
-
-  } catch {
-	alert(JSON.stringify(res.data))
-    document.getElementById(loadingId)?.remove();
-    messages.innerHTML += `
-      <div class="chatbot-msg chatbot-msg--error">
-        Sorry, we could not answer this question. Please try again.
-      </div>`;
-	
-  } finally {
-    input.disabled = false;
-    input.focus();
-    messages.scrollTop = messages.scrollHeight;
-  }
-}
-
-
-function closeChatBotWindow() {
-  document.getElementById('chatbot-window')?.remove();
 }

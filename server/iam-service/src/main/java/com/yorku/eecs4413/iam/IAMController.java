@@ -64,4 +64,27 @@ public class IAMController {
     public ResponseEntity<Map<String, Object>> getUserAddress(@PathVariable Long userId) {
         return ResponseEntity.ok(iamService.getUserAddress(userId));
     }
+
+    @PutMapping("/user/{userId}/address")
+    public ResponseEntity<Map<String, Object>> updateUserAddress(@PathVariable Long userId,
+                                                                 @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(iamService.updateUserAddress(userId, body));
+    }
+
+    @GetMapping("/user/{userId}/profile")
+    public ResponseEntity<Map<String, Object>> getUserProfile(@PathVariable Long userId) {
+        return ResponseEntity.ok(iamService.getUserProfile(userId));
+    }
+
+    @PutMapping("/user/{userId}/profile")
+    public ResponseEntity<Map<String, Object>> updateUserProfile(@PathVariable Long userId,
+                                                                  @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(iamService.updateProfile(userId, body));
+    }
+
+    @PutMapping("/user/{userId}/password")
+    public ResponseEntity<Map<String, Object>> changePassword(@PathVariable Long userId,
+                                                              @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(iamService.changePassword(userId, body));
+    }
 }

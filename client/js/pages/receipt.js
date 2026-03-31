@@ -67,6 +67,19 @@ async function renderReceipt(container, itemId) {
           </div>
         </div>
 
+        ${r.shippingAddress ? `
+        <div style="margin-bottom:20px">
+          <div class="section-label">Shipping Address</div>
+          <div style="padding:12px;background:var(--bg);border-radius:var(--radius-sm);font-size:13px;line-height:1.6">
+            ${(() => {
+              try {
+                const a = JSON.parse(r.shippingAddress);
+                return `${a.streetNumber} ${a.streetName}<br>${a.city}, ${a.country} ${a.postalCode}`;
+              } catch { return r.shippingAddress; }
+            })()}
+          </div>
+        </div>` : ''}
+
         <div style="text-align:center;padding-top:20px;border-top:1px solid var(--border)">
           <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
             Thank you for your purchase on WeBuild! Your item is on its way.
