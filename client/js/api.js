@@ -13,7 +13,11 @@ const Api = {
       const res = await fetch(API_BASE + path, opts);
       let data;
       try { data = await res.json(); } catch { data = {}; }
-      if (res.status === 401) Auth.clear();
+      if (res.status === 401) {
+        Auth.clear();
+        toast('Your session has expired. Please sign in again.', 'error');
+        navigate('#/login');
+      }
       return { ok: res.ok, status: res.status, data };
     } catch {
       return { ok: false, status: 0, data: { message: 'Cannot reach server. Is the gateway running on port 8080?' } };
@@ -41,6 +45,17 @@ const Api = {
   getAllItemsIncludingEnded: () => Api._req('GET', `/items/all`),
   getEndedItems:    ()         => Api._req('GET', `/items/ended`),
   prompt: (prompt) => Api._req('POST', '/chatbot', { prompt }),
+
+  changePassword: (body) => Api._req('PUT', '/password', body),
+
+  getAddress:    ()     => Api._req('GET', '/address'),
+  updateAddress: (body) => Api._req('PUT', '/address', body),
+
+  getProfile:    ()     => Api._req('GET', '/profile'),
+  updateProfile: (body) => Api._req('PUT', '/profile', body),
+  relistItem:    (itemId, newEndTime, startingPrice) =>
+    Api._req('POST', `/items/${itemId}/relist`, { newEndTime, startingPrice }),
+  isPaid:        (itemId) => Api._req('GET', `/payment/receipt/${itemId}`),
 
   processPayment: (itemId, expedited, cardNumber, cardHolderName, expirationDate, securityCode) =>
     Api._req('POST', '/payment', { itemId, expedited, cardNumber, cardHolderName, expirationDate, securityCode }),

@@ -6,6 +6,12 @@ async function renderPayment(container, itemId) {
     Api.getWinner(itemId),
   ]);
 
+  const receiptRes = await Api.isPaid(itemId);
+  if (receiptRes.ok && !receiptRes.data?.error) {
+    navigate(`#/receipt/${itemId}`);
+    return;
+  }
+
   if (!itemRes.ok) {
     container.innerHTML = notFoundHtml(itemId);
     return;
@@ -39,6 +45,14 @@ async function renderPayment(container, itemId) {
     return;
   }
 
+  // Step 1: shipping address
+  renderShippingStep(container, itemId, item, winner);
+}
+
+async function renderShippingStep(container, itemId, item, winner) {
+  const addrRes = await Api.getAddress();
+  const addr    = (addrRes.ok && !addrRes.data?.error) ? addrRes.data : {};
+
   const winningBid = Number(winner.winningBid);
   const stdShip    = Number(item.shippingCost)          || 0;
   const expdShip   = Number(item.expeditedShippingCost) || 0;
@@ -47,8 +61,124 @@ async function renderPayment(container, itemId) {
     <div class="back-btn" onclick="navigate('#/item/${itemId}')">← Back to Auction</div>
 
     <div class="page-header">
+      <div class="page-title">Shipping Address</div>
+      <div class="page-subtitle">Step 1 of 2 — Confirm where to send your item</div>
+    </div>
+
+    <div class="payment-grid">
+      <div class="card">
+        <h2 style="font-size:17px;font-weight:700;margin-bottom:20px">Delivery Address</h2>
+        <div id="addr-error"></div>
+
+        <form id="addr-form" autocomplete="off" novalidate>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Street Number</label>
+              <input class="form-input" type="text" id="addr-street-num"
+                     placeholder="123" value="${addr.streetNumber || ''}" required>
+            </div>
+            <div class="form-group" style="flex:2">
+              <label class="form-label">Street Name</label>
+              <input class="form-input" type="text" id="addr-street-name"
+                     placeholder="Main St" value="${addr.streetName || ''}" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">City</label>
+            <input class="form-input" type="text" id="addr-city"
+                   placeholder="Toronto" value="${addr.city || ''}" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Country</label>
+              <input class="form-input" type="text" id="addr-country"
+                     placeholder="Canada" value="${addr.country || ''}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Postal Code</label>
+              <input class="form-input" type="text" id="addr-postal"
+                     placeholder="M1A 1A1" value="${addr.postalCode || ''}" required>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-full btn-lg" type="submit" id="addr-submit" style="margin-top:8px">
+            Continue to Payment →
+          </button>
+        </form>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <h2 style="font-size:16px;font-weight:700;margin-bottom:16px">Order Summary</h2>
+          <div class="order-row">
+            <span style="color:var(--text-muted)">Item</span>
+            <span style="font-weight:600;max-width:180px;text-align:right;font-size:13px">${item.name}</span>
+          </div>
+          <div class="order-row">
+            <span style="color:var(--text-muted)">Winning Bid</span>
+            <span style="font-weight:600">${formatMoney(winningBid)}</span>
+          </div>
+          <div class="order-row">
+            <span style="color:var(--text-muted)">Shipping</span>
+            <span>from ${formatMoney(stdShip)}</span>
+          </div>
+        </div>
+
+        <div class="card" style="background:#fffbeb;border:1.5px solid #fcd34d">
+          <div style="font-size:14px;font-weight:700;margin-bottom:6px">🏆 Congratulations!</div>
+          <div style="font-size:13px;color:#92400e;line-height:1.5">
+            You won this auction with a bid of <strong>${formatMoney(winningBid)}</strong>.
+            Complete payment to secure the item.
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('addr-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const errEl     = document.getElementById('addr-error');
+    const submitBtn = document.getElementById('addr-submit');
+    errEl.innerHTML = '';
+
+    const streetNumber = document.getElementById('addr-street-num').value.trim();
+    const streetName   = document.getElementById('addr-street-name').value.trim();
+    const city         = document.getElementById('addr-city').value.trim();
+    const country      = document.getElementById('addr-country').value.trim();
+    const postalCode   = document.getElementById('addr-postal').value.trim();
+
+    if (!streetNumber || !streetName || !city || !country || !postalCode) {
+      errEl.innerHTML = `<div class="alert alert-error">All address fields are required.</div>`;
+      return;
+    }
+
+    submitBtn.disabled    = true;
+    submitBtn.textContent = 'Saving…';
+
+    const res = await Api.updateAddress({ streetNumber, streetName, city, country, postalCode });
+
+    if (res.ok) {
+      renderPaymentStep(container, itemId, item, winner, { streetNumber, streetName, city, country, postalCode });
+    } else {
+      errEl.innerHTML = `<div class="alert alert-error">${res.data?.message || 'Could not save address.'}</div>`;
+      submitBtn.disabled    = false;
+      submitBtn.textContent = 'Continue to Payment →';
+    }
+  });
+}
+
+function renderPaymentStep(container, itemId, item, winner, addr) {
+  const winningBid = Number(winner.winningBid);
+  const stdShip    = Number(item.shippingCost)          || 0;
+  const expdShip   = Number(item.expeditedShippingCost) || 0;
+
+  const addrLine = `${addr.streetNumber} ${addr.streetName}, ${addr.city}, ${addr.country} ${addr.postalCode}`;
+
+  container.innerHTML = `
+    <div class="back-btn" id="back-to-addr">← Back to Shipping Address</div>
+
+    <div class="page-header">
       <div class="page-title">Complete Payment</div>
-      <div class="page-subtitle">You won "${item.name}" — secure your item below</div>
+      <div class="page-subtitle">Step 2 of 2 — You won "${item.name}"</div>
     </div>
 
     <div class="payment-grid">
@@ -128,6 +258,11 @@ async function renderPayment(container, itemId) {
           </div>
         </div>
 
+        <div class="card" style="margin-bottom:16px;background:#f0fdf4;border:1.5px solid #86efac">
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px">📦 Shipping To</div>
+          <div style="font-size:13px;color:#166534;line-height:1.6">${addrLine}</div>
+        </div>
+
         <div class="card" style="background:#fffbeb;border:1.5px solid #fcd34d">
           <div style="font-size:14px;font-weight:700;margin-bottom:6px">🏆 Congratulations!</div>
           <div style="font-size:13px;color:#92400e;line-height:1.5">
@@ -137,6 +272,10 @@ async function renderPayment(container, itemId) {
         </div>
       </div>
     </div>`;
+
+  document.getElementById('back-to-addr').addEventListener('click', () => {
+    renderShippingStep(container, itemId, item, winner);
+  });
 
   document.getElementById('pay-card').addEventListener('input', e => {
     let v = e.target.value.replace(/\D/g, '').slice(0, 16);

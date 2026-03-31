@@ -1,4 +1,3 @@
-// sessionStorage keeps each tab's session independent, so two accounts can run side-by-side
 const Auth = {
   getToken:   () => sessionStorage.getItem('wb_token'),
   getUser:    () => { try { return JSON.parse(sessionStorage.getItem('wb_user')); } catch { return null; } },

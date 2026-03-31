@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -49,6 +50,13 @@ public class AuctionController {
     @GetMapping("/my-bids/{userId}")
     public ResponseEntity<?> getUserBidHistory(@PathVariable Long userId) {
         return ResponseEntity.ok(auctionService.getUserBidHistory(userId));
+    }
+
+    @PostMapping("/relist/{itemId}")
+    public ResponseEntity<?> relistAuction(@PathVariable Long itemId, @RequestBody Map<String, Object> body) {
+        String newEndTime     = body.get("newEndTime").toString();
+        BigDecimal startingPrice = new BigDecimal(body.get("startingPrice").toString());
+        return ResponseEntity.ok(auctionService.relistAuction(itemId, newEndTime, startingPrice));
     }
 
     @PostMapping("/close/{itemId}")

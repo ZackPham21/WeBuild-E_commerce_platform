@@ -32,6 +32,7 @@ public class AuctionService {
     public Auction createAuction(CreateAuctionRequest req) {
         Auction auction = new Auction();
         auction.setItemId(req.getItemId());
+        auction.setSellerId(req.getSellerId());
         auction.setCurrentHighestBid(req.getStartingPrice());
         auction.setEndTime(req.getParsedEndTime());
         auction.setStatus(Auction.AuctionStatus.OPEN);
@@ -57,6 +58,13 @@ public class AuctionService {
             auctionRepository.save(auction);
             return Map.of("success", false, "reason", "FAIL_AUCTION_ENDED",
                     "message", "This auction has ended.");
+        }
+
+        // Prevent the seller from bidding on their own auction
+        if (auction.getSellerId() != null && req.getUserId() != null &&
+                auction.getSellerId().toString().equals(req.getUserId().toString())) {
+            return Map.of("success", false, "reason", "FAIL_SELLER_BID",
+                    "message", "You cannot bid on your own auction.");
         }
 
         // Prevent the current highest bidder from raising their own bid
@@ -105,6 +113,12 @@ public class AuctionService {
         auction.setHighestBidderId(req.getUserId());
         auction.setHighestBidderUsername(req.getUsername());
         auctionRepository.save(auction);
+
+        long secsLeft = java.time.Duration.between(LocalDateTime.now(), auction.getEndTime()).getSeconds();
+        if (secsLeft < 60) {
+            auction.setEndTime(auction.getEndTime().plusSeconds(60 - secsLeft));
+            auctionRepository.save(auction);
+        }
 
         long secondsRemaining = java.time.Duration.between(LocalDateTime.now(), auction.getEndTime()).getSeconds();
 
@@ -215,6 +229,20 @@ public class AuctionService {
                     return m;
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public Map<String, Object> relistAuction(Long itemId, String newEndTime, BigDecimal startingPrice) {
+        Optional<Auction> optAuction = auctionRepository.findByItemId(itemId);
+        Auction auction = optAuction.orElse(new Auction());
+        auction.setItemId(itemId);
+        auction.setEndTime(LocalDateTime.parse(newEndTime));
+        auction.setCurrentHighestBid(startingPrice);
+        auction.setHighestBidderId(null);
+        auction.setHighestBidderUsername(null);
+        auction.setStatus(Auction.AuctionStatus.OPEN);
+        auctionRepository.save(auction);
+        return Map.of("success", true, "message", "Auction relisted.");
     }
 
     @Transactional

@@ -56,6 +56,34 @@ public class GatewayController {
         return gatewayService.resetPassword(body);
     }
 
+    @GetMapping("/address")
+    public ResponseEntity<?> getAddress(@RequestHeader("Authorization") String auth) {
+        return gatewayService.getAddress(auth.replace("Bearer ", ""));
+    }
+
+    @PutMapping("/address")
+    public ResponseEntity<?> updateAddress(@RequestHeader("Authorization") String auth,
+                                           @RequestBody Map<String, Object> body) {
+        return gatewayService.updateAddress(auth.replace("Bearer ", ""), body);
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getProfile(@RequestHeader("Authorization") String auth) {
+        return gatewayService.getProfile(auth.replace("Bearer ", ""));
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(@RequestHeader("Authorization") String auth,
+                                           @RequestBody Map<String, Object> body) {
+        return gatewayService.updateProfile(auth.replace("Bearer ", ""), body);
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<?> changePassword(@RequestHeader("Authorization") String auth,
+                                            @RequestBody Map<String, Object> body) {
+        return gatewayService.changePassword(auth.replace("Bearer ", ""), body);
+    }
+
     // ─── Catalogue ────────────────────────────────────────────────
     @GetMapping("/items")
     public ResponseEntity<?> getItems(@RequestHeader("Authorization") String auth) {
@@ -90,6 +118,13 @@ public class GatewayController {
     public ResponseEntity<?> deleteItem(@RequestHeader("Authorization") String auth,
                                         @PathVariable Long itemId) {
         return gatewayService.deleteItem(auth.replace("Bearer ", ""), itemId);
+    }
+
+    @PostMapping("/items/{itemId}/relist")
+    public ResponseEntity<?> relistItem(@RequestHeader("Authorization") String auth,
+                                        @PathVariable Long itemId,
+                                        @RequestBody Map<String, Object> body) {
+        return gatewayService.relistItem(auth.replace("Bearer ", ""), itemId, body);
     }
 
     // ─── Auction ──────────────────────────────────────────────────

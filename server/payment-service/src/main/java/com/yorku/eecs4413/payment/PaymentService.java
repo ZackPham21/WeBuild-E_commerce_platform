@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -15,18 +16,15 @@ public class PaymentService {
     private PaymentRepository paymentRepository;
 
     public Map<String, Object> processPayment(ProcessPaymentRequest req) {
-        // 1. Winner eligibility check
         if (!req.getUserId().equals(req.getWinnerId())) {
             return Map.of("success", false,
                     "message", "Payment failed. Only the winning bidder can complete payment for this item.");
         }
 
-        // 2. Prevent duplicate payment
         if (paymentRepository.existsByItemId(req.getItemId())) {
             return Map.of("success", false, "message", "Payment already processed for this item.");
         }
 
-        // 3. Validate card fields
         String cardError = validateCard(
                 req.getCardNumber(),
                 req.getCardHolderName(),
@@ -37,13 +35,11 @@ public class PaymentService {
             return Map.of("success", false, "message", cardError);
         }
 
-        // 4. Compute total
         BigDecimal total = req.getWinningBid().add(req.getShippingCost());
         if (req.isExpedited() && req.getExpeditedCost() != null) {
             total = total.add(req.getExpeditedCost());
         }
 
-        // 5. Save payment record (mask last 4 digits of card)
         String digits = req.getCardNumber().replaceAll("[\\s-]", "");
         String masked = "****-****-****-" + digits.substring(digits.length() - 4);
 
@@ -61,6 +57,12 @@ public class PaymentService {
         payment.setExpirationDate(req.getExpirationDate());
         payment.setStatus(Payment.PaymentStatus.SUCCESS);
         payment.setProcessedAt(LocalDateTime.now());
+
+        if (req.getShippingAddress() != null) {
+            try {
+                payment.setShippingAddress(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(req.getShippingAddress()));
+            } catch (Exception ignored) {}
+        }
 
         paymentRepository.save(payment);
 
@@ -80,31 +82,23 @@ public class PaymentService {
         }
 
         Payment p = optPayment.get();
-        return Map.of(
-                "receiptId", p.getId(),
-                "itemId", p.getItemId(),
-                "winnerUsername", p.getWinnerUsername(),
-                "winningBid", p.getWinningBid(),
-                "shippingCost", p.getShippingCost(),
-                "expedited", p.isExpedited(),
-                "totalAmount", p.getTotalAmount(),
-                "maskedCardNumber", p.getMaskedCardNumber(),
-                "processedAt", p.getProcessedAt().toString()
-        );
+        Map<String, Object> result = new HashMap<>();
+        result.put("receiptId", p.getId());
+        result.put("itemId", p.getItemId());
+        result.put("winnerUsername", p.getWinnerUsername());
+        result.put("winningBid", p.getWinningBid());
+        result.put("shippingCost", p.getShippingCost());
+        result.put("expedited", p.isExpedited());
+        result.put("totalAmount", p.getTotalAmount());
+        result.put("maskedCardNumber", p.getMaskedCardNumber());
+        result.put("processedAt", p.getProcessedAt().toString());
+        result.put("shippingAddress", p.getShippingAddress() != null ? p.getShippingAddress() : "");
+        return result;
     }
-
-    // ── Card Validation ───────────────────────────────────────────────────
-    // Rules:
-    //   - Card number: strip spaces/dashes, must be at least 12 digits (no Luhn check)
-    //   - Card holder: must not be blank
-    //   - Expiry: MM/YY or MM/YYYY format, must not be in the past
-    //   - Security code: 3 or 4 digits
-    // Returns null if valid, or an error message string if invalid.
 
     private String validateCard(String cardNumber, String cardHolderName,
                                 String expirationDate, String securityCode) {
 
-        // Card number — strip spaces and dashes, require at least 12 digits
         if (cardNumber == null) {
             return "Card number is required.";
         }
@@ -113,12 +107,10 @@ public class PaymentService {
             return "Card number must be at least 12 digits.";
         }
 
-        // Card holder name — must not be blank
         if (cardHolderName == null || cardHolderName.trim().isEmpty()) {
             return "Card holder name is required.";
         }
 
-        // Expiration date — accepts MM/YY or MM/YYYY, must not be in the past
         if (expirationDate == null || !expirationDate.matches("(0[1-9]|1[0-2])/\\d{2,4}")) {
             return "Expiration date must be in MM/YY or MM/YYYY format.";
         }
@@ -137,11 +129,10 @@ public class PaymentService {
             return "Invalid expiration date.";
         }
 
-        // Security code — must be 3 or 4 digits
         if (securityCode == null || !securityCode.matches("\\d{3,4}")) {
             return "Security code must be 3 or 4 digits.";
         }
 
-        return null; // all checks passed
+        return null;
     }
 }

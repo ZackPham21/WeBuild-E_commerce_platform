@@ -37,6 +37,9 @@ public class Payment {
     private String cardHolderName;
     private String expirationDate;
 
+    @Column(length = 1000)
+    private String shippingAddress;
+
     @Enumerated(EnumType.STRING)
     private PaymentStatus status;
 
@@ -46,7 +49,6 @@ public class Payment {
         SUCCESS, FAILED
     }
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -82,6 +84,9 @@ public class Payment {
 
     public String getExpirationDate() { return expirationDate; }
     public void setExpirationDate(String expirationDate) { this.expirationDate = expirationDate; }
+
+    public String getShippingAddress() { return shippingAddress; }
+    public void setShippingAddress(String shippingAddress) { this.shippingAddress = shippingAddress; }
 
     public PaymentStatus getStatus() { return status; }
     public void setStatus(PaymentStatus status) { this.status = status; }

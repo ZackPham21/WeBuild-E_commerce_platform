@@ -66,6 +66,11 @@ public class CatalogueController {
         return item != null ? ResponseEntity.ok(item) : ResponseEntity.status(404).body(Map.of("error", "Item not found"));
     }
 
+    @PostMapping("/items/{itemId}/relist")
+    public ResponseEntity<?> relistItem(@PathVariable Long itemId, @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(catalogueService.relistItem(itemId, body.get("newEndTime")));
+    }
+
     @PostMapping("/items/{itemId}/sold")
     public ResponseEntity<?> markAsSold(@PathVariable Long itemId) {
         return ResponseEntity.ok(catalogueService.markAsSold(itemId));

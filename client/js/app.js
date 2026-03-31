@@ -36,18 +36,39 @@ function formatCountdown(seconds) {
   return { text, urgency, d, h, m, s };
 }
 
-function formatDate(iso) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleString('en-CA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+function parseImages(imageUrl) {
+  if (!imageUrl) return [];
+  const s = String(imageUrl).trimStart();
+  if (s.startsWith('[')) {
+    try { return JSON.parse(s).filter(Boolean); } catch {}
+  }
+  return [imageUrl];
 }
 
-// Purchases are stored per-tab so different accounts don't bleed into each other
+function formatDate(iso) {
+  if (!iso) return '—';
+  // Append Z if no timezone info so the browser treats it as UTC and converts to local time
+  const normalized = String(iso).endsWith('Z') || String(iso).includes('+') ? iso : iso + 'Z';
+  return new Date(normalized).toLocaleString('en-CA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 const Purchases = {
   get() { try { return JSON.parse(sessionStorage.getItem('wb_purchases') || '[]'); } catch { return []; } },
   add(itemId) {
     const list = Purchases.get();
     if (!list.includes(Number(itemId))) { list.push(Number(itemId)); sessionStorage.setItem('wb_purchases', JSON.stringify(list)); }
   },
+};
+
+const DarkMode = {
+  init() {
+    if (localStorage.getItem('wb_dark') === '1') document.body.classList.add('dark');
+  },
+  toggle() {
+    const isDark = document.body.classList.toggle('dark');
+    localStorage.setItem('wb_dark', isDark ? '1' : '0');
+  },
+  isDark() { return document.body.classList.contains('dark'); },
 };
 
 // Canvas particle effect with mouse-tracking glow — used on the home hero and login panel
@@ -94,7 +115,6 @@ function startCanvasEffect(canvasId, parent) {
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Lerp smooths the glow so it lags behind the cursor slightly
     smooth.x += (mouse.x - smooth.x) * 0.07;
     smooth.y += (mouse.y - smooth.y) * 0.07;
 
@@ -119,7 +139,6 @@ function startCanvasEffect(canvasId, parent) {
       ctx.fillStyle = `rgba(200, 80, 42, ${a})`;
       ctx.fill();
 
-      // Small white offset gives a sparkle/ember feel
       ctx.beginPath();
       ctx.arc(p.x + p.r * 0.5, p.y - p.r * 0.5, p.r * 0.4, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.6})`;
@@ -188,6 +207,9 @@ function renderNav() {
       <div class="nav-brand" onclick="navigate('#/')">We<span>Build</span></div>
       <div class="nav-spacer"></div>
       <div class="nav-right">
+        <button class="nav-icon-btn" onclick="DarkMode.toggle(); renderNav()" title="Toggle dark mode" id="dark-toggle">
+          ${DarkMode.isDark() ? '☀️' : '🌙'}
+        </button>
         ${user ? `
           <span class="nav-user-label">Signed in as <strong>${user.username}</strong></span>
           <div class="nav-menu" id="nav-menu">
@@ -197,8 +219,10 @@ function renderNav() {
             <div class="nav-dropdown" id="nav-dropdown">
               <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/sell')"><span class="nav-dropdown-icon">🏷️</span> Sell an Item</button>
               <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/my-listings')"><span class="nav-dropdown-icon">📦</span> My Listings</button>
+              <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/watchlist')"><span class="nav-dropdown-icon">🔖</span> Watchlist</button>
               <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/purchases')"><span class="nav-dropdown-icon">🧾</span> My Purchases</button>
               <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/ended')"><span class="nav-dropdown-icon">🏁</span> Past Auctions</button>
+              <button class="nav-dropdown-item" onclick="closeNavMenu(); navigate('#/account')"><span class="nav-dropdown-icon">⚙️</span> Account Settings</button>
               <div class="nav-dropdown-divider"></div>
               <button class="nav-dropdown-item nav-dropdown-item-danger" onclick="closeNavMenu(); doLogout()"><span class="nav-dropdown-icon">🚪</span> Log Out</button>
             </div>
@@ -266,31 +290,57 @@ async function route() {
   else if (hash === '#/my-listings')       renderMyListings(main);
   else if (hash === '#/purchases')         renderPurchases(main);
   else if (hash === '#/ended')             renderEndedAuctions(main);
+  else if (hash === '#/account')           renderAccount(main);
+  else if (hash === '#/watchlist')         renderWatchlist(main);
   else                                     navigate('#/');
 }
-// ── Shared Chatbot (used on all pages) ────────────────────────────────────
+
 function buildChatBotButton() {
   if (document.getElementById('chatbot')) return;
   const button = document.createElement('button');
   button.id = 'chatbot';
-  button.textContent = 'Chat Assistant';
-  button.addEventListener('click', buildChatBotWindow);
+  button.title = 'Chat Assistant';
+  button.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>`;
+  button.addEventListener('click', openChatBotWindow);
   document.body.appendChild(button);
 }
 
-function buildChatBotWindow() {
-  if (document.getElementById('chatbot-window')) return;
+function openChatBotWindow() {
+  const existing = document.getElementById('chatbot-window');
+  if (existing) {
+    existing.classList.remove('chatbot-hidden');
+    document.getElementById('chatbot-input')?.focus();
+    return;
+  }
+
   const win = document.createElement('div');
   win.id = 'chatbot-window';
   win.innerHTML = `
     <div id="chatbot-header">
-      <span>AI Chat Assistant</span>
-      <button id="chatbot-close" onclick="closeChatBotWindow()">✕</button>
+      <div id="chatbot-header-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div id="chatbot-header-text">
+        <div id="chatbot-header-title">AI Chat Assistant</div>
+        <div id="chatbot-header-sub">Ask about items or auctions</div>
+      </div>
+      <button class="chatbot-header-btn" title="Reset chat" onclick="resetChatBot()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.47"/>
+        </svg>
+      </button>
+      <button class="chatbot-header-btn" title="Close" onclick="closeChatBotWindow()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
     </div>
     <div id="chatbot-messages">
-      <div class="chatbot-msg chatbot-msg--ai">
-        Hello, I am your AI assistant. Type your question below.
-      </div>
+      <div class="chatbot-msg chatbot-msg--ai">Hello! I can help you find items, check auction prices, or answer questions about WeBuild. What would you like to know?</div>
     </div>
     <div id="chatbot-input-row">
       <input id="chatbot-input" type="text" placeholder="Type your question…">
@@ -301,6 +351,7 @@ function buildChatBotWindow() {
   document.getElementById('chatbot-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') submitChatBotPrompt();
   });
+  document.getElementById('chatbot-input').focus();
 }
 
 async function submitChatBotPrompt() {
@@ -319,12 +370,26 @@ async function submitChatBotPrompt() {
   try {
     const res = await Api.prompt(userText);
     document.getElementById(loadingId)?.remove();
-    if (!res.ok) throw new Error('Bad response');
-    const aiText = res.data?.response ?? res.data?.message ?? JSON.stringify(res.data);
-    messages.innerHTML += `<div class="chatbot-msg chatbot-msg--ai">${aiText}</div>`;
+    if (!res.ok) {
+      const raw = res.data?.message || '';
+      let errMsg;
+      if (res.status === 0) {
+        errMsg = 'Sorry, I\'m having trouble connecting. Please check your connection and try again.';
+      } else if (res.status === 429 || raw.toLowerCase().includes('quota') || raw.toLowerCase().includes('too many')) {
+        errMsg = 'Sorry, I\'m currently rate-limited due to high demand. Please try again in a moment.';
+      } else if (raw.toLowerCase().includes('api key') || raw.toLowerCase().includes('invalid')) {
+        errMsg = 'Sorry, the assistant is temporarily unavailable. Please try again later.';
+      } else {
+        errMsg = 'Sorry, I\'m having trouble processing your request right now. Please try again.';
+      }
+      messages.innerHTML += `<div class="chatbot-msg chatbot-msg--error">${errMsg}</div>`;
+    } else {
+      const aiText = res.data?.response ?? res.data?.message ?? JSON.stringify(res.data);
+      messages.innerHTML += `<div class="chatbot-msg chatbot-msg--ai">${aiText}</div>`;
+    }
   } catch {
     document.getElementById(loadingId)?.remove();
-    messages.innerHTML += `<div class="chatbot-msg chatbot-msg--error">Sorry, could not answer that. Please try again.</div>`;
+    messages.innerHTML += `<div class="chatbot-msg chatbot-msg--error">Could not reach the assistant. Please check your connection.</div>`;
   } finally {
     input.disabled = false;
     input.focus();
@@ -333,7 +398,14 @@ async function submitChatBotPrompt() {
 }
 
 function closeChatBotWindow() {
-  document.getElementById('chatbot-window')?.remove();
+  document.getElementById('chatbot-window')?.classList.add('chatbot-hidden');
+}
+
+function resetChatBot() {
+  const messages = document.getElementById('chatbot-messages');
+  if (messages) {
+    messages.innerHTML = `<div class="chatbot-msg chatbot-msg--ai">Hello! I can help you find items, check auction prices, or answer questions about WeBuild. What would you like to know?</div>`;
+  }
 }
 window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', () => {
@@ -341,5 +413,6 @@ window.addEventListener('DOMContentLoaded', () => {
   tc.id = 'toast-container';
   tc.className = 'toast-container';
   document.body.appendChild(tc);
+  DarkMode.init();
   route();
 });

@@ -20,6 +20,8 @@ public class AddItemRequest {
     private Integer shippingDays;
     private BigDecimal shippingCost;
     private BigDecimal expeditedShippingCost;
+    private String imageUrl;
+    private String condition;
 
     // all getters and setters unchanged
     public String getName() { return name; }
@@ -51,4 +53,10 @@ public class AddItemRequest {
 
     public BigDecimal getExpeditedShippingCost() { return expeditedShippingCost; }
     public void setExpeditedShippingCost(BigDecimal expeditedShippingCost) { this.expeditedShippingCost = expeditedShippingCost; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public String getCondition() { return condition; }
+    public void setCondition(String condition) { this.condition = condition; }
 }
