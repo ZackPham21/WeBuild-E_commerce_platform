@@ -15,15 +15,23 @@ async function renderMyListings(container) {
       <div class="loading" style="grid-column:1/-1"><div class="spinner"></div><span>Loading…</span></div>
     </div>`;
 
- const res = await Api.getItems();
- if (!res.ok) {
+ const [activeRes, endedAuctionsRes] = await Promise.all([Api.getItems(), Api.getEndedAuctions()]);
+
+ if (!activeRes.ok && !endedAuctionsRes.ok) {
      document.getElementById('listings-panel').innerHTML =
          `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-title">Failed to load listings</div></div>`;
      return;
  }
 
- const all = (Array.isArray(res.data) ? res.data : [])
-     .filter(item => String(item.sellerId) === String(user.userId));
+ const liveItemsRaw   = activeRes.ok       && Array.isArray(activeRes.data)        ? activeRes.data        : [];
+ const endedAuctions  = endedAuctionsRes.ok && Array.isArray(endedAuctionsRes.data) ? endedAuctionsRes.data : [];
+ const endedItemsRaw  = endedAuctions.map(a => a.item).filter(Boolean);
+ const seenIds        = new Set();
+ const all = [...liveItemsRaw, ...endedItemsRaw].filter(item => {
+   if (seenIds.has(item.id)) return false;
+   seenIds.add(item.id);
+   return String(item.sellerId) === String(user.userId);
+ });
 
   const auctionResults = await Promise.all(all.map(item => Api.getAuctionState(item.id)));
   const auctionMap = {};
@@ -42,15 +50,15 @@ async function renderMyListings(container) {
    return false;
  });
 
- const endedItems = all.filter(item => {
+ const closedItems = all.filter(item => {
      const a = auctionMap[item.id];
      return !a || a.status !== 'OPEN' || (a.secondsRemaining ?? 0) <= 0;
  });
   window._myListingsLive  = liveItems;
-  window._myListingsEnded = endedItems;
+  window._myListingsEnded = closedItems;
   window._myListingsAuctionMap = auctionMap;
 
-  const soldItems = endedItems.filter(item => {
+  const soldItems = closedItems.filter(item => {
     const a = auctionMap[item.id];
     return a && a.highestBidderId && String(a.highestBidderId) !== 'none';
   });
@@ -117,9 +125,10 @@ function buildMyListingCard(item, auction, tab) {
   const emoji    = categoryEmoji(item.category);
   const badgeCls = categoryBadgeClass(item.category);
   const isEnded  = tab === 'ended';
+  const firstImg = parseImages(item.imageUrl)[0] || null;
 
   const noBids   = !auction?.highestBidderId || String(auction.highestBidderId) === 'none';
-  const bidLabel = noBids ? 'Starting At' : 'Final Bid';
+  const bidLabel = noBids ? 'Starting At' : isEnded ? 'Final Bid' : 'Current Bid';
   const bidValue = noBids ? item.startingPrice : auction.currentHighestBid;
 
   const cd = isEnded ? null : formatCountdown(auction?.secondsRemaining ?? 0);
@@ -127,7 +136,9 @@ function buildMyListingCard(item, auction, tab) {
   return `
     <div class="item-card">
       <div class="item-card-thumb" onclick="navigate('#/item/${item.id}')" style="cursor:pointer">
-        ${emoji}
+        ${firstImg
+          ? `<img src="${firstImg}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`
+          : `<span style="font-size:68px;line-height:1">${emoji}</span>`}
         ${!isEnded ? `<span class="live-badge-card"><span class="live-badge-dot"></span>LIVE</span>` : ''}
       </div>
       <div class="item-card-body">

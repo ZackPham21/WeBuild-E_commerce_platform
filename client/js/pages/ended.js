@@ -42,11 +42,14 @@ function buildEndedCard(a, user) {
   const name     = item.name || `Item #${a.itemId}`;
   const noBids   = !a.winnerId || String(a.winnerId) === 'none';
   const isWinner = user && !noBids && String(a.winnerId) === String(user.userId);
+  const firstImg = parseImages(item.imageUrl)[0] || null;
 
   return `
     <div class="item-card" onclick="navigate('#/item/${a.itemId}')">
       <div class="item-card-thumb">
-        ${emoji}
+        ${firstImg
+          ? `<img src="${firstImg}" alt="${name}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`
+          : `<span style="font-size:68px;line-height:1">${emoji}</span>`}
         <span class="ended-badge-card">ENDED</span>
       </div>
       <div class="item-card-body">

@@ -45,7 +45,6 @@ async function renderPayment(container, itemId) {
     return;
   }
 
-  // Step 1: shipping address
   renderShippingStep(container, itemId, item, winner);
 }
 
@@ -124,9 +123,9 @@ async function renderShippingStep(container, itemId, item, winner) {
           </div>
         </div>
 
-        <div class="card" style="background:#fffbeb;border:1.5px solid #fcd34d">
+        <div class="card payment-win-card">
           <div style="font-size:14px;font-weight:700;margin-bottom:6px">🏆 Congratulations!</div>
-          <div style="font-size:13px;color:#92400e;line-height:1.5">
+          <div class="payment-win-text">
             You won this auction with a bid of <strong>${formatMoney(winningBid)}</strong>.
             Complete payment to secure the item.
           </div>
@@ -258,14 +257,14 @@ function renderPaymentStep(container, itemId, item, winner, addr) {
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:16px;background:#f0fdf4;border:1.5px solid #86efac">
+        <div class="card payment-ship-card" style="margin-bottom:16px">
           <div style="font-size:13px;font-weight:700;margin-bottom:4px">📦 Shipping To</div>
-          <div style="font-size:13px;color:#166534;line-height:1.6">${addrLine}</div>
+          <div class="payment-ship-text">${addrLine}</div>
         </div>
 
-        <div class="card" style="background:#fffbeb;border:1.5px solid #fcd34d">
+        <div class="card payment-win-card">
           <div style="font-size:14px;font-weight:700;margin-bottom:6px">🏆 Congratulations!</div>
-          <div style="font-size:13px;color:#92400e;line-height:1.5">
+          <div class="payment-win-text">
             You won this auction with a bid of <strong>${formatMoney(winningBid)}</strong>.
             Complete payment to secure the item.
           </div>

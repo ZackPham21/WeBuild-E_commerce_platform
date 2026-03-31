@@ -74,6 +74,17 @@ function renderPurchasesTab(tab) {
     return;
   }
 
+  const paidItemIds = new Set(Purchases.get().map(Number));
+  const winningBidPerItem = {};
+  bids.forEach(b => {
+    if (b.won && paidItemIds.has(Number(b.itemId))) {
+      const cur = winningBidPerItem[b.itemId];
+      if (cur === undefined || Number(b.amount) > Number(cur)) {
+        winningBidPerItem[b.itemId] = Number(b.amount);
+      }
+    }
+  });
+
   panel.innerHTML = `
     <div style="max-width:700px">
       <table class="bid-table">
@@ -86,23 +97,24 @@ function renderPurchasesTab(tab) {
           </tr>
         </thead>
         <tbody>
-          ${bids.map(b => buildBidHistoryRow(b)).join('')}
+          ${bids.map(b => buildBidHistoryRow(b, winningBidPerItem)).join('')}
         </tbody>
       </table>
     </div>`;
 }
 
-function buildBidHistoryRow(b) {
+function buildBidHistoryRow(b, winningBidPerItem = {}) {
   const itemId   = b.itemId;
   const itemLink = itemId
     ? `<a class="auth-link" onclick="navigate('#/item/${itemId}')" style="cursor:pointer">Item #${itemId}</a>`
     : '—';
 
   const isClosed = b.auctionStatus === 'CLOSED';
+  const isWinningBid = b.won && Number(b.amount) === winningBidPerItem[b.itemId];
   let resultBadge;
   if (!isClosed) {
     resultBadge = `<span class="badge badge-open">Live</span>`;
-  } else if (b.won) {
+  } else if (isWinningBid) {
     const alreadyPaid = Purchases.get().includes(Number(b.itemId));
     resultBadge = alreadyPaid
       ? `<span class="badge badge-open" style="background:#d1fae5;color:#065f46">✅ Paid</span>`
@@ -112,7 +124,7 @@ function buildBidHistoryRow(b) {
   }
 
   return `
-    <tr class="${b.won ? 'bid-winner-row' : ''}">
+    <tr class="${isWinningBid ? 'bid-winner-row' : ''}">
       <td>${itemLink}</td>
       <td><strong>${formatMoney(b.amount)}</strong></td>
       <td>${resultBadge}</td>

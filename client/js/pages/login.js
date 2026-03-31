@@ -60,7 +60,7 @@ async function renderLogin(container) {
       </div>
     </div>`;
 
-  startCanvasEffect('login-canvas', document.querySelector('.login-panel-left'));
+  startCanvasEffect('login-canvas', document.querySelector('.login-panel-left'), true);
 
   document.getElementById('login-form').addEventListener('submit', async e => {
     e.preventDefault();

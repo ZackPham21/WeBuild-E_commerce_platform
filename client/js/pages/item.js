@@ -30,7 +30,6 @@ async function renderItem(container, itemId) {
   const isPaid = receiptRes.ok && !receiptRes.data?.error;
   const user = Auth.getUser();
 
-  // Calculate time locally from end time string to avoid server timezone issues
   const endTimeStr = item.auctionEndTime
       ? (item.auctionEndTime.endsWith('Z') ? item.auctionEndTime : item.auctionEndTime + 'Z')
       : null;
@@ -50,7 +49,7 @@ async function renderItem(container, itemId) {
       <div>
         ${images.length > 0
           ? `<div class="item-gallery">
-               <img id="gallery-img" src="${images[0]}" alt="${item.name}">
+               <img id="gallery-img" src="${images[0]}" alt="${item.name}" onclick="openLightbox(this.src, '${item.name.replace(/'/g, "\\'")}')">
                ${images.length > 1 ? `
                  <button class="gallery-nav gallery-prev" onclick="itemGalleryNav(-1)">&#8249;</button>
                  <button class="gallery-nav gallery-next" onclick="itemGalleryNav(1)">&#8250;</button>
@@ -115,7 +114,7 @@ async function renderItem(container, itemId) {
       Notification.requestPermission();
     }
     wireBidForm(itemId, auction);
-    startLiveUpdates(itemId, item, secsLeft);
+    startLiveUpdates(itemId, item, secsLeft, isPaid);
   }
 
   if (images.length > 1) {
@@ -334,8 +333,9 @@ async function loadBidHistory(itemId) {
     </table>`;
 }
 
-function startLiveUpdates(itemId, item, initialSecs) {
+function startLiveUpdates(itemId, item, initialSecs, initialIsPaid) {
   let secsLeft    = initialSecs;
+  let isPaid      = !!initialIsPaid;
   let stompClient = null;
 
   function setWsStatus(connected) {
@@ -397,6 +397,15 @@ function startLiveUpdates(itemId, item, initialSecs) {
         if (update.secondsRemaining !== undefined) {
           secsLeft = update.secondsRemaining;
         }
+
+        Api.getAuctionState(itemId).then(freshRes => {
+          if (!freshRes.ok) return;
+          const panel = document.getElementById('auction-panel');
+          if (!panel) return;
+          const user = Auth.getUser();
+          panel.innerHTML = buildAuctionPanel(item, freshRes.data, true, user, secsLeft, isPaid);
+          wireBidForm(itemId, freshRes.data);
+        });
       });
 
     }, (err) => {
