@@ -35,7 +35,7 @@ public class GatewayChatbotService {
     public void init() {
         //This apiKey is currently under a free account and has a rate limit of 35 requests/day.
         //If the chatbot stops replying, please create a new Gemini account and insert your own key.
-    	client = Client.builder().apiKey("AIzaSyBzaWnhGDcX0l4Gsa6lrIs93ZXnFeYdoK4").build();
+    	client = Client.builder().apiKey("insert key here before running the server!").build();
     }
 
     // ─── Prompt ───────────────────────────────────────────────────
@@ -70,7 +70,7 @@ public class GatewayChatbotService {
 
             // ── Submit to Gemini API ───────────────────────────────
             GenerateContentResponse response = client.models.generateContent(
-                    "gemini-2.0-flash-lite",
+                    "gemini-3.1-flash-lite-preview",
                     prompt,
                     null
             );

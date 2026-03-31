@@ -387,7 +387,7 @@ async function submitChatBotPrompt() {
       }
       messages.innerHTML += `<div class="chatbot-msg chatbot-msg--error">${errMsg}</div>`;
     } else {
-      const aiText = res.data?.response ?? res.data?.message ?? JSON.stringify(res.data);
+      const aiText = res.data?.answer ?? res.data?.response ?? res.data?.message ?? "Sorry, we could not answer this question. Please try again.";
       messages.innerHTML += `<div class="chatbot-msg chatbot-msg--ai">${aiText}</div>`;
     }
   } catch {
