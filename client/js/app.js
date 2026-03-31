@@ -72,7 +72,7 @@ const DarkMode = {
 };
 
 // Canvas particle effect with mouse-tracking glow — used on the home hero and login panel
-function startCanvasEffect(canvasId, parent) {
+function startCanvasEffect(canvasId, parent, alwaysOrange = false) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -118,12 +118,15 @@ function startCanvasEffect(canvasId, parent) {
     smooth.x += (mouse.x - smooth.x) * 0.07;
     smooth.y += (mouse.y - smooth.y) * 0.07;
 
+    const dark = !alwaysOrange && document.body.classList.contains('dark');
+
     if (mouse.active) {
+      const gc = dark ? '20, 12, 8' : '200, 80, 42';
       const grad = ctx.createRadialGradient(smooth.x, smooth.y, 0, smooth.x, smooth.y, 260);
-      grad.addColorStop(0,    'rgba(200, 80, 42, 0.13)');
-      grad.addColorStop(0.35, 'rgba(200, 80, 42, 0.07)');
-      grad.addColorStop(0.7,  'rgba(200, 80, 42, 0.02)');
-      grad.addColorStop(1,    'rgba(200, 80, 42, 0)');
+      grad.addColorStop(0,    `rgba(${gc}, 0.18)`);
+      grad.addColorStop(0.35, `rgba(${gc}, 0.09)`);
+      grad.addColorStop(0.7,  `rgba(${gc}, 0.03)`);
+      grad.addColorStop(1,    `rgba(${gc}, 0)`);
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
@@ -136,12 +139,12 @@ function startCanvasEffect(canvasId, parent) {
 
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(200, 80, 42, ${a})`;
+      ctx.fillStyle = dark ? `rgba(20, 12, 8, ${a * 1.4})` : `rgba(200, 80, 42, ${a})`;
       ctx.fill();
 
       ctx.beginPath();
       ctx.arc(p.x + p.r * 0.5, p.y - p.r * 0.5, p.r * 0.4, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.6})`;
+      ctx.fillStyle = dark ? `rgba(0, 0, 0, ${a})` : `rgba(255, 255, 255, ${a * 0.6})`;
       ctx.fill();
 
       if (p.y < -10 || p.x < -10 || p.x > canvas.width + 10) {
@@ -407,6 +410,23 @@ function resetChatBot() {
     messages.innerHTML = `<div class="chatbot-msg chatbot-msg--ai">Hello! I can help you find items, check auction prices, or answer questions about WeBuild. What would you like to know?</div>`;
   }
 }
+function openLightbox(src, alt) {
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  overlay.innerHTML = `
+    <button class="lightbox-close" aria-label="Close">✕</button>
+    <img class="lightbox-img" src="${src}" alt="${alt || ''}">`;
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay || e.target.classList.contains('lightbox-close')) {
+      overlay.remove();
+    }
+  });
+  document.addEventListener('keydown', function onKey(e) {
+    if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); }
+  }, { once: true });
+  document.body.appendChild(overlay);
+}
+
 window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', () => {
   const tc = document.createElement('div');

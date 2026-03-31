@@ -24,14 +24,9 @@ async function renderHome(container) {
     </div>`;
 
   container.innerHTML = `
-    <div class="home-filters">
+    <div class="home-filters" id="home-filters">
       <span class="filter-label">Category:</span>
       <button class="cat-btn active" data-cat="" onclick="filterCategory(this)">All</button>
-      <button class="cat-btn" data-cat="Electronics" onclick="filterCategory(this)">Electronics</button>
-      <button class="cat-btn" data-cat="Accessories" onclick="filterCategory(this)">Accessories</button>
-      <button class="cat-btn" data-cat="Antiques"    onclick="filterCategory(this)">Antiques</button>
-      <button class="cat-btn" data-cat="Sports"      onclick="filterCategory(this)">Sports</button>
-      <button class="cat-btn" data-cat="Furniture"   onclick="filterCategory(this)">Furniture</button>
     </div>
     <p class="results-info" id="results-info"></p>
     <div id="items-grid" class="items-grid">
@@ -73,7 +68,63 @@ async function loadAllItems() {
   showGridLoading();
   const res = await Api.getItems();
   if (!res.ok) { showGridError('Failed to load items. Check that the server is running.'); return; }
-  renderItemGrid(Array.isArray(res.data) ? res.data : []);
+  const items = Array.isArray(res.data) ? res.data : [];
+  buildCategoryFilter(items);
+  renderItemGrid(items);
+}
+
+function buildCategoryFilter(items) {
+  const counts = {};
+  items.forEach(item => {
+    const cat = item.category || 'Other';
+    counts[cat] = (counts[cat] || 0) + 1;
+  });
+
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const top    = sorted.slice(0, 5);
+  const rest   = sorted.slice(5);
+
+  const filtersEl = document.getElementById('home-filters');
+  if (!filtersEl) return;
+
+  const topBtns = top.map(([cat, count]) =>
+    `<button class="cat-btn" data-cat="${cat}" onclick="filterCategory(this)">${cat} <span class="cat-count">${count}</span></button>`
+  ).join('');
+
+  const moreBtn = rest.length ? `
+    <div class="cat-more-wrap" id="cat-more-wrap">
+      <button class="cat-btn cat-more-btn" id="cat-more-btn" onclick="toggleCatMore(event)">
+        More ▾
+      </button>
+      <div class="cat-more-dropdown" id="cat-more-dropdown">
+        ${rest.map(([cat, count]) =>
+          `<button class="cat-more-item" data-cat="${cat}" onclick="filterCategory(this); closeCatMore()">${cat} <span class="cat-count">${count}</span></button>`
+        ).join('')}
+      </div>
+    </div>` : '';
+
+  filtersEl.innerHTML = `
+    <span class="filter-label">Category:</span>
+    <button class="cat-btn active" data-cat="" onclick="filterCategory(this)">All</button>
+    ${topBtns}
+    ${moreBtn}`;
+}
+
+function toggleCatMore(e) {
+  e.stopPropagation();
+  const dropdown = document.getElementById('cat-more-dropdown');
+  const wrap     = document.getElementById('cat-more-wrap');
+  if (!dropdown) return;
+  const isOpen = dropdown.classList.toggle('open');
+  if (isOpen) {
+    setTimeout(() => document.addEventListener('click', closeCatMore, { once: true }), 0);
+  }
+  wrap?.classList.toggle('open', isOpen);
+}
+
+function closeCatMore() {
+  document.getElementById('cat-more-dropdown')?.classList.remove('open');
+  document.getElementById('cat-more-wrap')?.classList.remove('open');
 }
 
 async function doSearch() {
@@ -102,8 +153,15 @@ async function filterCategory(btn) {
 }
 
 function setActiveCategory(cat) {
-  document.querySelectorAll('.cat-btn').forEach(b =>
+  document.querySelectorAll('.cat-btn, .cat-more-item').forEach(b =>
     b.classList.toggle('active', b.dataset.cat === (cat ?? '')));
+
+  const moreBtn  = document.getElementById('cat-more-btn');
+  const dropdown = document.getElementById('cat-more-dropdown');
+  if (moreBtn && dropdown) {
+    const inDropdown = cat && !!dropdown.querySelector(`[data-cat="${cat}"]`);
+    moreBtn.classList.toggle('active', inDropdown);
+  }
 }
 
 function showGridLoading(msg = 'Loading auctions…') {
@@ -159,7 +217,7 @@ function buildItemCard(item, auction) {
       <div class="item-card-thumb">
         ${firstImg
           ? `<img src="${firstImg}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`
-          : emoji}
+          : `<span style="font-size:68px;line-height:1">${emoji}</span>`}
         ${!isEnded ? `<span class="live-badge-card"><span class="live-badge-dot"></span>LIVE</span>` : ''}
         <button class="watchlist-heart${isWatched ? ' active' : ''}" onclick="event.stopPropagation(); toggleWatchlistItem(${item.id}, this)" title="${isWatched ? 'Remove from watchlist' : 'Add to watchlist'}">♥</button>
       </div>

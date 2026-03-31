@@ -73,7 +73,7 @@ function buildWatchlistCard(item, auction) {
   return `
     <div class="item-card">
       <div class="item-card-thumb" onclick="navigate('#/item/${item.id}')" style="cursor:pointer">
-        ${firstImg ? `<img src="${firstImg}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">` : emoji}
+        ${firstImg ? `<img src="${firstImg}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">` : `<span style="font-size:68px;line-height:1">${emoji}</span>`}
         ${!isEnded ? `<span class="live-badge-card"><span class="live-badge-dot"></span>LIVE</span>` : '<span class="ended-badge-card">ENDED</span>'}
         <button class="watchlist-heart active" onclick="event.stopPropagation(); toggleWatchlistItem(${item.id}, this)" title="Remove from watchlist">♥</button>
       </div>
@@ -100,9 +100,9 @@ function toggleWatchlistItem(itemId, btn) {
   Watchlist.toggle(itemId);
   const isNowWatched = Watchlist.has(itemId);
   btn.classList.toggle('active', isNowWatched);
-  if (!isNowWatched) {
+  if (!isNowWatched && window.location.hash === '#/watchlist') {
     btn.closest('.item-card')?.remove();
-    const grid = document.getElementById('watchlist-grid') || document.getElementById('items-grid');
+    const grid = document.getElementById('watchlist-grid');
     if (grid && !grid.querySelector('.item-card')) {
       renderWatchlist(document.getElementById('main'));
     }

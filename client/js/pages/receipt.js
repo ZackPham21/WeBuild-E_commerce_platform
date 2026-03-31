@@ -35,7 +35,9 @@ async function renderReceipt(container, itemId) {
         <div style="margin-bottom:20px">
           <div class="section-label">Item Purchased</div>
           <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
-            <div style="font-size:42px">${item ? categoryEmoji(item.category) : '📦'}</div>
+            ${item && parseImages(item.imageUrl)[0]
+              ? `<img src="${parseImages(item.imageUrl)[0]}" alt="${item.name}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;cursor:zoom-in" onclick="openLightbox(this.src, '${(item.name || '').replace(/'/g, "\\'")}')">`
+              : `<div style="font-size:42px;flex-shrink:0">${item ? categoryEmoji(item.category) : '📦'}</div>`}
             <div>
               <div style="font-weight:700;font-size:16px">${item?.name || 'Item #' + itemId}</div>
               <div style="font-size:13px;color:var(--text-muted)">${item?.category || ''}</div>
