@@ -130,7 +130,6 @@ async function renderItemGrid(items) {
     if (item.auctionEndTime) _homeEndTimes[item.id] = new Date(item.auctionEndTime + 'Z').getTime();
   });
 
-  // Fetch all auction states in parallel
   const auctionResults = await Promise.all(items.map(item => Api.getAuctionState(item.id)));
   const auctionMap = {};
   items.forEach((item, i) => {
