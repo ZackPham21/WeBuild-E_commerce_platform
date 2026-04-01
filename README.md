@@ -9,11 +9,11 @@ WeBuild is a real-time forward auction e-commerce platform built with Spring Boo
 
 Make sure the following are installed before running the application:
 
-| Tool | Version | Download |
+| Tool | Version | Notes |
 |---|---|---|
-| Docker Desktop | Latest | https://www.docker.com/products/docker-desktop |
-| Node.js | 18+ | https://nodejs.org |
-| Git | Any | https://git-scm.com |
+| Docker Desktop | Latest | Required — runs all services |
+| Git | Any | Required — to clone the repo |
+| Node.js 18+ or Python 3 | Either | Optional — only needed if not opening `app.html` directly |
 
 > Java and Maven are **not required** — everything runs inside Docker containers.
 
@@ -107,26 +107,23 @@ Then press `Ctrl+C` to stop watching the logs.
 
 ---
 
-## Step 3 — Start the Frontend
+## Step 3 — Open the Frontend
 
-Open a **new terminal** in the `client/` folder:
+**Easiest:** drag `client/app.html` directly into Chrome. The gateway accepts `file://` origins, so this works out of the box.
 
+**Alternative — serve it locally (any method works):**
+
+Node.js:
 ```bash
-cd client
-npx serve .
+cd client && npx serve .
 ```
 
-You will see output like:
-
-```
-Serving!
-- Local:    http://localhost:3000
+Python:
+```bash
+cd client && python -m http.server 3000
 ```
 
-Open `http://localhost:3000` in your browser.
-
-> **Note:** The frontend must be served from a local server, not opened as a file directly.
-> Opening `app.html` directly with `file://` will cause CORS errors.
+Then open `http://localhost:3000`.
 
 ---
 
@@ -233,6 +230,25 @@ The chatbot uses the Google Gemini API and fetches live item data before respond
 
 ---
 
+## Rebuilding After Code Changes
+
+If you modify any backend Java code, rebuild the affected service image before restarting:
+
+```bash
+# Rebuild a single service (faster)
+docker-compose build gateway-service
+docker-compose up -d --no-deps gateway-service
+
+# Rebuild everything from scratch
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+> The frontend (`client/`) is plain HTML/JS — no rebuild is needed for frontend changes. Just refresh the browser.
+
+---
+
 ## Stopping the Application
 
 ```bash
@@ -274,29 +290,33 @@ docker exec -it catalogue-db psql -U postgres -d cataloguedb -c "SELECT setval('
 ```
 
 ### Frontend shows blank page
-Make sure you are running `npx serve .` from inside the `client/` folder, not opening the file directly in the browser.
+Make sure Docker is running and the gateway has fully started. Open the browser console (F12) and check for errors — a `net::ERR_CONNECTION_REFUSED` on port 8080 means the backend is not ready yet.
 
 ### Sign in says cannot connect
 The gateway service may still be starting up. Wait 60 seconds after `docker-compose up -d` and try again.
 
 ---
 
-## H2 Console (Development Only)
+## Database Access (Development)
 
-If the services are running locally with H2 (not Docker), the database consoles are available at:
+Each PostgreSQL database is exposed on a host port. Connect with any PostgreSQL client (pgAdmin, DBeaver, `psql`):
 
-| Service | URL | JDBC URL |
-|---|---|---|
-| IAM | http://localhost:8081/h2-console | jdbc:h2:mem:iamdb |
-| Catalogue | http://localhost:8082/h2-console | jdbc:h2:mem:cataloguedb |
-| Auction | http://localhost:8083/h2-console | jdbc:h2:mem:auctiondb |
-| Payment | http://localhost:8084/h2-console | jdbc:h2:mem:paymentdb |
+| Service | Host Port | Database | Username | Password |
+|---|---|---|---|---|
+| IAM | 5432 | iamdb | postgres | postgres |
+| Catalogue | 5433 | cataloguedb | postgres | postgres |
+| Auction | 5434 | auctiondb | postgres | postgres |
+| Payment | 5435 | paymentdb | postgres | postgres |
 
-Username: `sa` | Password: *(leave blank)*
+Or query directly via Docker:
+
+```bash
+docker exec -it iam-db psql -U postgres -d iamdb
+```
 
 ---
 
-## API Reference
+## WebSocket — Real-Time Bidding
 
 All requests go through the gateway on port 8080. Protected endpoints require `Authorization: Bearer <token>`.
 
@@ -341,9 +361,46 @@ All requests go through the gateway on port 8080. Protected endpoints require `A
 
 ## Team
 
-| Member | Role |
-|---|---|
-| Dursen Tulema | WebSocket implementation, Sign In page, frontend bug fixes, SDD |
-| Quan | Docker, PostgreSQL migration, backend improvements, Sign Up page, SDD |
-| Sunny | AI chatbot (distinguishable feature), SDD |
-| Sarimah | Frontend UI (primary), SDD |
+### Dursen Tulema
+- WebSocket implementation (Spring STOMP/SockJS config, `SimpMessagingTemplate` broadcast in AuctionService)
+- Sign In page implementation
+- WebSocket frontend integration in `item.js` (STOMP subscription, live bid display, 8s polling fallback, connection status indicator)
+- Outbid panel re-render fix (UI state transition without page refresh)
+- Timezone mismatch fix (datetime-local UTC conversion in `sell.js`)
+- Duplicate `startLiveUpdates` function bug fix
+- Watchlist, bid history, and past auctions bug fixes
+- SDD writing
+
+### Quan
+- Docker Compose setup and containerization of all 5 microservices
+- PostgreSQL migration from H2 (schema, init scripts, DB-per-service)
+- Backend API improvements (gateway routing, endpoint fixes)
+- Sign Up page implementation
+- Multi-image upload on sell page with left/right gallery navigation
+- Dark mode across all pages (hero, cards, forms, payment, chatbot)
+- Dynamic category filter (top 5 by listing count + More dropdown)
+- Image lightbox (click to zoom with Escape/click-outside to close)
+- My Listings stats tracking (sold count, revenue, avg price)
+- Watchlist, bid history, and past auctions bug fixes
+- SDD writing
+
+### Sunny
+- Integrated Google Gemini API into the Gateway service via `GatewayChatbotService.java`
+- Designed and iterated system prompt across 4 versions to improve accuracy, grounding, and refusal behaviour
+- Implemented live data injection by fetching real-time item data from the Catalogue service on every request
+- Added server-side JSON strip logic to handle model formatting inconsistencies
+- Evaluated chatbot accuracy across price queries, off-topic inputs, out-of-stock queries, and prompt injection attempts
+- Added graceful fallback handling for Gemini API quota exhaustion
+- SDD writing
+
+### Sarimah
+- Frontend UI (primary)
+- Implemented the Landing page
+- Implemented live countdown timers on all auction item cards, updating every second
+- Built the Sell Item page with full form validation (name, price, end time, shipping, condition, image upload/URL)
+- Built the My Listings page with Live/Ended tabs and delete functionality
+- Built the Purchases page with Purchases/Bid History tabs and receipt linking
+- Added navigation dropdown menu with Sell, My Listings, and Purchases routes
+- Designed and implemented a JMeter load test plan with automated test runner and results analysis scripts
+- Generated performance charts (response time vs. arrival rate, throughput vs. arrival rate)
+- SDD writing
