@@ -124,10 +124,25 @@ async function renderAccount(container) {
     const streetName   = document.getElementById('acc-street-name').value.trim();
     const city         = document.getElementById('acc-city').value.trim();
     const country      = document.getElementById('acc-country').value.trim();
-    const postalCode   = document.getElementById('acc-postal').value.trim();
+    const postalCode   = document.getElementById('acc-postal').value.trim().toUpperCase();
     alertEl.innerHTML = '';
-    if (!streetNumber || !streetName || !city || !country || !postalCode) {
-      alertEl.innerHTML = `<div class="alert alert-error">All address fields are required.</div>`;
+
+    const errors = [];
+    if (!/^\d{1,6}[a-zA-Z]?$/.test(streetNumber))
+      errors.push('Street number must be 1–6 digits, optionally followed by a letter (e.g. 123, 45A).');
+    if (streetName.length < 2 || streetName.length > 100 || !/^[a-zA-ZÀ-ÿ0-9][a-zA-ZÀ-ÿ0-9 .\'""-]*$/.test(streetName))
+      errors.push('Street name must be 2–100 characters: letters, numbers, spaces and common punctuation only.');
+    if (city.length < 2 || city.length > 50 || !/^[a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ .\'""-]*$/.test(city))
+      errors.push('City must be 2–50 characters: letters, spaces and common punctuation only.');
+    if (country.length < 2 || country.length > 50 || !/^[a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ \-]*$/.test(country))
+      errors.push('Country must be 2–50 characters: letters, spaces and hyphens only.');
+    const ca = /^[A-Za-z]\d[A-Za-z][ ]?\d[A-Za-z]\d$/;
+    const us = /^\d{5}(-\d{4})?$/;
+    if (!ca.test(postalCode) && !us.test(postalCode))
+      errors.push('Enter a valid Canadian postal code (e.g. M3J 1P3) or US zip code (e.g. 10001).');
+
+    if (errors.length) {
+      alertEl.innerHTML = `<div class="alert alert-error">${errors.join('<br>')}</div>`;
       return;
     }
     btn.disabled = true; btn.textContent = 'Saving…';

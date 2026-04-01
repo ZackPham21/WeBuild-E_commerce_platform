@@ -1,16 +1,5 @@
 package com.yorku.eecs4413.gateway;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.genai.Client;
-import com.google.genai.ResponseStream;
-import com.google.genai.types.*;
-import com.google.gson.Gson;
-import com.google.genai.JsonSerializable;
-
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +7,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import com.google.genai.Client;
+import com.google.genai.types.GenerateContentResponse;
+import com.google.gson.Gson;
 
 import jakarta.annotation.PostConstruct;
 
@@ -35,7 +28,7 @@ public class GatewayChatbotService {
     public void init() {
         //This apiKey is currently under a free account and has a rate limit of 500 requests/day and 15 requests/minutes.
         //If the chatbot stops replying, please create a new Gemini account and insert your own key.
-    	client = Client.builder().apiKey("insert key here before running the server!").build();
+    	client = Client.builder().apiKey("AIzaSyD59C54sD_A_RxRr_vntNUCT_7icJj0ctg").build();
     }
 
     // ─── Prompt ───────────────────────────────────────────────────

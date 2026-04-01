@@ -84,15 +84,11 @@ const RULES = {
       const ca = /^[A-Za-z]\d[A-Za-z][ ]?\d[A-Za-z]\d$/;
       // US: 12345 or 12345-6789
       const us = /^\d{5}(-\d{4})?$/;
-      // UK: broad pattern (SW1A 1AA, EC1A 1BB, etc.)
-      const uk = /^[A-Za-z]{1,2}\d[A-Za-z\d]?\s?\d[A-Za-z]{2}$/;
-      // General: at least 3 non-whitespace chars
-      const general = /^[a-zA-Z0-9][a-zA-Z0-9 \-]{2,9}$/;
-      if (!ca.test(v) && !us.test(v) && !uk.test(v) && !general.test(v))
-        return 'Enter a valid postal / zip code (e.g. M3J 1P3, 10001, SW1A 1AA).';
+      if (!ca.test(v) && !us.test(v))
+        return 'Enter a valid Canadian postal code (e.g. M3J 1P3) or US zip code (e.g. 10001).';
       return null;
     },
-    hint: 'Canadian, US and international formats accepted',
+    hint: 'Canadian (A1A 1A1) or US (12345) formats accepted',
   },
 };
 
