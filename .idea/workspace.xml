@@ -5,16 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="3e236a00-972c-4f11-9470-d5e7ba208d28" name="Changes" comment="Live update bug fixed">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/js/api.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/api.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/js/pages/item.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/pages/item.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/js/pages/my-listings.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/pages/my-listings.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/js/pages/sell.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/js/pages/sell.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/CatalogueController.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/CatalogueController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/CatalogueService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/CatalogueService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/ItemRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/catalogue-service/src/main/java/com/yorku/eecs4413/catalogue/ItemRepository.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/server/gateway-service/src/main/java/com/yorku/eecs4413/gateway/GatewayChatbotService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/gateway-service/src/main/java/com/yorku/eecs4413/gateway/GatewayChatbotService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/payment-service/src/main/java/com/yorku/eecs4413/payment/PaymentService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/payment-service/src/main/java/com/yorku/eecs4413/payment/PaymentService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -41,13 +32,10 @@
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
-  <component name="MavenImportPreferences">
-    <option name="generalSettings">
-      <MavenGeneralSettings>
-        <option name="useMavenConfig" value="true" />
-      </MavenGeneralSettings>
-    </option>
-  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "customColor": "",
+  "associatedIndex": 0
+}]]></component>
   <component name="ProjectId" id="3AGJM6A3T2uHTQNMxNiEWH6kzVD" />
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="1" id="Add" />
@@ -56,13 +44,15 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "DefaultHtmlFileTemplate": "HTML File",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "Merging main",
+    "kotlin-language-version-configured": "true"
   }
-}</component>
+}]]></component>
   <component name="RunManager" selected="Application.GatewayApplication">
     <configuration name="AuctionServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="com.yorku.eecs4413.auction.AuctionServiceApplication" />
