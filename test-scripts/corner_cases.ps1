@@ -78,6 +78,37 @@ try {
     exit 1
 }
 
+# ── Setup: seller1 lists a fresh item so this script is idempotent ──
+# (item 1 gets closed + marked SOLD after the payment tests below, so
+#  reusing it on a second run would fail with FAIL_AUCTION_ENDED /
+#  FAIL_ALREADY_WINNING instead of exercising the intended test cases)
+Write-Host ""
+Write-Host "--- SETUP: seller1 lists a fresh item for this run ---" -ForegroundColor Magenta
+$sellerSignin = Invoke-RestMethod -Uri "$BASE/signin" -Method POST `
+    -ContentType "application/json" `
+    -Body (@{ username = "seller1"; password = "SellerPass!1" } | ConvertTo-Json)
+$sellerHeaders = @{ Authorization = "Bearer $($sellerSignin.token)" }
+
+$now = Get-Date
+$setupTs = [int](Get-Date -UFormat %s)
+$itemBody = @{
+    name                  = "Corner Case Item $setupTs"
+    description           = "Auto-generated item for corner_cases.ps1"
+    category              = "Electronics"
+    startingPrice         = 10
+    sellerId              = $sellerSignin.userId
+    auctionStartTime      = $now.ToString("yyyy-MM-ddTHH:mm:ss")
+    auctionEndTime        = $now.AddHours(1).ToString("yyyy-MM-ddTHH:mm:ss")
+    shippingDays          = 3
+    shippingCost          = 5
+    expeditedShippingCost = 15
+    imageUrl              = ""
+    condition             = "New"
+} | ConvertTo-Json
+$itemId = (Invoke-RestMethod -Uri "$BASE/items" -Method POST -Headers $sellerHeaders `
+    -ContentType "application/json" -Body $itemBody).id
+Write-Host "  Created item ID: $itemId" -ForegroundColor Gray
+
 # ── TC-IAM-001: Successful Sign Up ───────────────────────────
 Write-Host ""
 Write-Host "=== TC-IAM-001: Successful Sign Up ===" -ForegroundColor Cyan
@@ -144,40 +175,40 @@ Assert-Success "Active items endpoint works" $resp
 # ── TC-AUC-009: Valid Bid ────────────────────────────────────
 Write-Host ""
 Write-Host "=== TC-AUC-009: Valid Bid Submission ===" -ForegroundColor Cyan
-$stateResp  = Invoke-API -Uri "$BASE/auction/state/1" -Method GET -Headers $winnerHeaders
+$stateResp  = Invoke-API -Uri "$BASE/auction/state/$itemId" -Method GET -Headers $winnerHeaders
 $currentBid = [int]$stateResp.body.currentHighestBid
 $validBid   = $currentBid + 5
 $resp = Invoke-API -Uri "$BASE/auction/bid" -Method POST -Headers $winnerHeaders `
-    -Body (@{itemId=1; amount=$validBid} | ConvertTo-Json)
+    -Body (@{itemId=$itemId; amount=$validBid} | ConvertTo-Json)
 Assert-Success "Valid bid (current+5) is accepted" $resp
 
 # ── TC-AUC-003: Bid Equal to Current ─────────────────────────
 Write-Host ""
 Write-Host "=== TC-AUC-003: Bid Equal to Current Highest ===" -ForegroundColor Cyan
 $resp = Invoke-API -Uri "$BASE/auction/bid" -Method POST -Headers $loserHeaders `
-    -Body (@{itemId=1; amount=$validBid} | ConvertTo-Json)
+    -Body (@{itemId=$itemId; amount=$validBid} | ConvertTo-Json)
 Assert-Failure "Equal bid is rejected" $resp
 
 # ── TC-AUC-010: Bid Lower than Current ───────────────────────
 Write-Host ""
 Write-Host "=== TC-AUC-010: Bid Lower Than Current ===" -ForegroundColor Cyan
 $resp = Invoke-API -Uri "$BASE/auction/bid" -Method POST -Headers $loserHeaders `
-    -Body (@{itemId=1; amount=($validBid - 10)} | ConvertTo-Json)
+    -Body (@{itemId=$itemId; amount=($validBid - 10)} | ConvertTo-Json)
 Assert-Failure "Lower bid is rejected" $resp
 
-# ── TC-AUC-010: Non-integer Bid ──────────────────────────────
+# ── TC-AUC-012: Non-integer Bid ──────────────────────────────
 Write-Host ""
-Write-Host "=== TC-AUC-010: Non-Integer Bid ===" -ForegroundColor Cyan
+Write-Host "=== TC-AUC-012: Non-Integer Bid ===" -ForegroundColor Cyan
 $resp = Invoke-API -Uri "$BASE/auction/bid" -Method POST -Headers $loserHeaders `
-    -Body (@{itemId=1; amount=($validBid + 0.50)} | ConvertTo-Json)
+    -Body (@{itemId=$itemId; amount=($validBid + 0.50)} | ConvertTo-Json)
 Assert-Failure "Decimal bid is rejected" $resp
 
 # ── TC-AUC-011: Timer Countdown ──────────────────────────────
 Write-Host ""
 Write-Host "=== TC-AUC-011: Auction Timer Countdown ===" -ForegroundColor Cyan
-$before = (Invoke-API -Uri "$BASE/auction/state/1" -Method GET -Headers $winnerHeaders).body.secondsRemaining
+$before = (Invoke-API -Uri "$BASE/auction/state/$itemId" -Method GET -Headers $winnerHeaders).body.secondsRemaining
 Start-Sleep -Seconds 3
-$after  = (Invoke-API -Uri "$BASE/auction/state/1" -Method GET -Headers $winnerHeaders).body.secondsRemaining
+$after  = (Invoke-API -Uri "$BASE/auction/state/$itemId" -Method GET -Headers $winnerHeaders).body.secondsRemaining
 Write-Host "  Before: $before seconds  |  After 3s wait: $after seconds" -ForegroundColor Gray
 if ($after -lt $before) {
     Write-Host "  PASS - Timer is counting down correctly" -ForegroundColor Green
@@ -191,7 +222,7 @@ if ($after -lt $before) {
 Write-Host ""
 Write-Host "=== TC-PAY-013: Non-Winner Payment Attempt ===" -ForegroundColor Cyan
 $resp = Invoke-API -Uri "$BASE/payment" -Method POST -Headers $loserHeaders -Body (@{
-    itemId         = 1
+    itemId         = $itemId
     expedited      = $false
     cardNumber     = "4111111111111111"
     cardHolderName = "Bob Loser"
@@ -204,7 +235,7 @@ Assert-Failure "Non-winner payment is rejected" $resp
 Write-Host ""
 Write-Host "=== TC-PAY: Invalid Card Number ===" -ForegroundColor Cyan
 $resp = Invoke-API -Uri "$BASE/payment" -Method POST -Headers $winnerHeaders -Body (@{
-    itemId         = 1
+    itemId         = $itemId
     expedited      = $false
     cardNumber     = "1234567890"
     cardHolderName = "Alice Winner"
@@ -217,7 +248,7 @@ Assert-Failure "Invalid card number is rejected" $resp
 Write-Host ""
 Write-Host "=== TC-PAY: Expired Card ===" -ForegroundColor Cyan
 $resp = Invoke-API -Uri "$BASE/payment" -Method POST -Headers $winnerHeaders -Body (@{
-    itemId         = 1
+    itemId         = $itemId
     expedited      = $false
     cardNumber     = "4111111111111111"
     cardHolderName = "Alice Winner"
@@ -230,7 +261,7 @@ Assert-Failure "Expired card is rejected" $resp
 Write-Host ""
 Write-Host "=== TC-PAY-014: Valid Payment with Expedited Shipping ===" -ForegroundColor Cyan
 $resp = Invoke-API -Uri "$BASE/payment" -Method POST -Headers $winnerHeaders -Body (@{
-    itemId         = 1
+    itemId         = $itemId
     expedited      = $true
     cardNumber     = "4111111111111111"
     cardHolderName = "Alice Winner"
@@ -253,7 +284,7 @@ if ($resp.success) {
 Write-Host ""
 Write-Host "=== TC-PAY-015: Duplicate Payment ===" -ForegroundColor Cyan
 $resp = Invoke-API -Uri "$BASE/payment" -Method POST -Headers $winnerHeaders -Body (@{
-    itemId         = 1
+    itemId         = $itemId
     expedited      = $true
     cardNumber     = "4111111111111111"
     cardHolderName = "Alice Winner"
@@ -265,7 +296,7 @@ Assert-Failure "Duplicate payment is rejected" $resp
 # ── TC-REC-016: View Receipt ─────────────────────────────────
 Write-Host ""
 Write-Host "=== TC-REC-016: View Receipt ===" -ForegroundColor Cyan
-$resp = Invoke-API -Uri "$BASE/payment/receipt/1" -Method GET -Headers $winnerHeaders
+$resp = Invoke-API -Uri "$BASE/payment/receipt/$itemId" -Method GET -Headers $winnerHeaders
 Assert-Success "Receipt is retrievable after payment" $resp
 
 # ── Unauthorized Access ──────────────────────────────────────

@@ -56,6 +56,37 @@ try {
 
 $headers = @{ Authorization = "Bearer $TOKEN" }
 
+# ── Setup: seller1 lists a fresh item so this script is idempotent ──
+# (item 1 gets closed + marked SOLD after the payment step below, so
+#  reusing it on a second run would fail with FAIL_AUCTION_ENDED)
+Write-Host ""
+Write-Host "=== Setup: seller1 lists a fresh item for this run ===" -ForegroundColor Cyan
+$sellerSignin = Invoke-RestMethod -Uri "$BASE/signin" -Method POST `
+    -ContentType "application/json" `
+    -Body (@{ username = "seller1"; password = "SellerPass!1" } | ConvertTo-Json)
+$sellerHeaders = @{ Authorization = "Bearer $($sellerSignin.token)" }
+
+$now = Get-Date
+$itemBody = @{
+    name                  = "Test Item $timestamp"
+    description           = "Auto-generated item for main_flow.ps1"
+    category              = "Electronics"
+    startingPrice         = 10
+    sellerId              = $sellerSignin.userId
+    auctionStartTime      = $now.ToString("yyyy-MM-ddTHH:mm:ss")
+    auctionEndTime        = $now.AddHours(1).ToString("yyyy-MM-ddTHH:mm:ss")
+    shippingDays          = 3
+    shippingCost          = 5
+    expeditedShippingCost = 15
+    imageUrl              = ""
+    condition             = "New"
+} | ConvertTo-Json
+
+$itemResp = Invoke-RestMethod -Uri "$BASE/items" -Method POST -Headers $sellerHeaders `
+    -ContentType "application/json" -Body $itemBody
+$itemId = $itemResp.id
+Write-Host "Created item ID: $itemId" -ForegroundColor Green
+
 # ── UC2.2: Browse Active Auction Items ───────────────────────
 Write-Host ""
 Write-Host "=== UC2.2: Browse Active Auction Items ===" -ForegroundColor Cyan
@@ -73,20 +104,20 @@ Invoke-RestMethod -Uri "$BASE/items/category/Electronics" -Method GET -Headers $
 
 # ── UC3: Get Auction State ───────────────────────────────────
 Write-Host ""
-Write-Host "=== UC3: Get Live Auction State for Item 1 ===" -ForegroundColor Cyan
-$auctionState = Invoke-RestMethod -Uri "$BASE/auction/state/1" -Method GET -Headers $headers
+Write-Host "=== UC3: Get Live Auction State for Item $itemId ===" -ForegroundColor Cyan
+$auctionState = Invoke-RestMethod -Uri "$BASE/auction/state/$itemId" -Method GET -Headers $headers
 $auctionState | ConvertTo-Json -Depth 5
 
 # ── UC3: Place a Bid ─────────────────────────────────────────
 Write-Host ""
-Write-Host "=== UC3: Place a Valid Bid on Item 1 ===" -ForegroundColor Cyan
+Write-Host "=== UC3: Place a Valid Bid on Item $itemId ===" -ForegroundColor Cyan
 $currentBid = [int]$auctionState.currentHighestBid
 $newBid     = $currentBid + 1
 Write-Host "Current highest bid: $currentBid  -->  Placing bid of: $newBid" -ForegroundColor White
 
 try {
     $bidResp = Invoke-RestMethod -Uri "$BASE/auction/bid" -Method POST -Headers $headers `
-        -ContentType "application/json" -Body (@{ itemId = 1; amount = $newBid } | ConvertTo-Json)
+        -ContentType "application/json" -Body (@{ itemId = $itemId; amount = $newBid } | ConvertTo-Json)
     $bidResp | ConvertTo-Json
 } catch {
     Write-Host "Bid error: $($_.Exception.Message)" -ForegroundColor Red
@@ -94,14 +125,14 @@ try {
 
 # ── Bid History ──────────────────────────────────────────────
 Write-Host ""
-Write-Host "=== UC3: View Bid History for Item 1 ===" -ForegroundColor Cyan
-Invoke-RestMethod -Uri "$BASE/auction/bids/1" -Method GET -Headers $headers | ConvertTo-Json -Depth 5
+Write-Host "=== UC3: View Bid History for Item $itemId ===" -ForegroundColor Cyan
+Invoke-RestMethod -Uri "$BASE/auction/bids/$itemId" -Method GET -Headers $headers | ConvertTo-Json -Depth 5
 
 # ── UC4: Auction Winner ──────────────────────────────────────
 Write-Host ""
-Write-Host "=== UC4: Check Auction Winner for Item 1 ===" -ForegroundColor Cyan
+Write-Host "=== UC4: Check Auction Winner for Item $itemId ===" -ForegroundColor Cyan
 try {
-    Invoke-RestMethod -Uri "$BASE/auction/winner/1" -Method GET -Headers $headers | ConvertTo-Json -Depth 5
+    Invoke-RestMethod -Uri "$BASE/auction/winner/$itemId" -Method GET -Headers $headers | ConvertTo-Json -Depth 5
 } catch {
     Write-Host "Winner check: $($_.Exception.Message)" -ForegroundColor Yellow
 }
@@ -112,7 +143,7 @@ Write-Host "=== UC5: Process Payment as Auction Winner ===" -ForegroundColor Cya
 Write-Host "Note: Payment only succeeds if current user is the highest bidder." -ForegroundColor Gray
 
 $paymentBody = @{
-    itemId        = 1
+    itemId        = $itemId
     expedited     = $true
     cardNumber    = "4111111111111111"
     cardHolderName = "John Doe"
@@ -130,9 +161,9 @@ try {
 
 # ── UC6: Receipt ─────────────────────────────────────────────
 Write-Host ""
-Write-Host "=== UC6: View Receipt for Item 1 ===" -ForegroundColor Cyan
+Write-Host "=== UC6: View Receipt for Item $itemId ===" -ForegroundColor Cyan
 try {
-    Invoke-RestMethod -Uri "$BASE/payment/receipt/1" -Method GET -Headers $headers | ConvertTo-Json -Depth 5
+    Invoke-RestMethod -Uri "$BASE/payment/receipt/$itemId" -Method GET -Headers $headers | ConvertTo-Json -Depth 5
 } catch {
     Write-Host "Receipt note: $($_.Exception.Message)" -ForegroundColor Yellow
     Write-Host "Receipt only available after successful payment." -ForegroundColor Gray
